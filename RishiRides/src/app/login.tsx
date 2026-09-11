@@ -68,9 +68,9 @@ export default function LoginScreen() {
       await AsyncStorage.setItem('userMobile', cleanMobile);
 
       if (role === 'passenger') {
-        router.replace('/passenger-dashboard');
+        router.replace('../dashboards/passenger/passenger-dashboard');
       } else {
-        router.replace('/driver-dashboard');
+        router.replace('../dashboards/driver/driver-dashboard');
       }
     } catch (error) {
       console.error('Login error:', error);

@@ -24,7 +24,7 @@ export default function SignupScreen() {
 
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('');
+  const [LicenceNumber, setLicenceNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] =
     useState('');
@@ -39,9 +39,9 @@ export default function SignupScreen() {
     if (
       !name ||
       !mobile ||
-      !email ||
       !password ||
-      !confirmPassword
+      !confirmPassword ||
+      (role === 'driver' && !LicenceNumber)
     ) {
       Alert.alert(
         'Missing details',
@@ -258,14 +258,14 @@ export default function SignupScreen() {
             maxLength={10}
           />
 
-          {/* EMAIL */}
+          {/* Licence Number */}
 
           <Input
-            icon="email"
-            placeholder="Email address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
+            icon="card-account-details-outline"
+            placeholder="Licence Number"
+            value={LicenceNumber}
+            onChangeText={setLicenceNumber}
+            keyboardType="numeric"
           />
 
           {/* PASSWORD */}
