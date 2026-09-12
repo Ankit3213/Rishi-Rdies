@@ -30,7 +30,10 @@ export default function LandingScreen() {
         resizeMode="cover"
         style={styles.background}
       >
-        <View style={styles.overlay} />
+        {/* Soft calm background layer - no absoluteFillObject */}
+        <View style={styles.softBackground}>
+          <View style={styles.softGlow} />
+        </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -54,8 +57,8 @@ export default function LandingScreen() {
               <View style={styles.logoCircle}>
                 <MaterialCommunityIcons
                   name="rickshaw"
-                  size={27}
-                  color="#fff"
+                  size={26}
+                  color="#ffffff"
                 />
               </View>
 
@@ -109,7 +112,7 @@ export default function LandingScreen() {
                 <MaterialCommunityIcons
                   name="map-marker"
                   size={16}
-                  color="#fff"
+                  color="#315c4d"
                 />
 
                 <Text style={styles.locationText}>
@@ -127,8 +130,8 @@ export default function LandingScreen() {
 
               <Text style={styles.heroDescription}>
                 RishiRides connects passengers and drivers
-                across Rishikesh with safe, reliable and
-                affordable transportation.
+                across Rishikesh with safe, peaceful and
+                reliable transportation.
               </Text>
 
               {/* ================= TWO OPTIONS ================= */}
@@ -143,8 +146,8 @@ export default function LandingScreen() {
                   <View style={styles.roleIcon}>
                     <MaterialCommunityIcons
                       name="account"
-                      size={25}
-                      color="#fff"
+                      size={24}
+                      color="#ffffff"
                     />
                   </View>
 
@@ -154,14 +157,14 @@ export default function LandingScreen() {
                     </Text>
 
                     <Text style={styles.roleDescription}>
-                      Book a ride around Rishikesh
+                      Book a comfortable ride around Rishikesh
                     </Text>
                   </View>
 
                   <MaterialCommunityIcons
                     name="arrow-right"
                     size={21}
-                    color="#fff"
+                    color="#ffffff"
                   />
                 </Pressable>
 
@@ -174,8 +177,8 @@ export default function LandingScreen() {
                   <View style={styles.driverIcon}>
                     <MaterialCommunityIcons
                       name="steering"
-                      size={25}
-                      color="#18a565"
+                      size={24}
+                      color="#4d806d"
                     />
                   </View>
 
@@ -185,14 +188,14 @@ export default function LandingScreen() {
                     </Text>
 
                     <Text style={styles.driverRoleDescription}>
-                      Earn by driving with RishiRides
+                      Earn peacefully by driving with RishiRides
                     </Text>
                   </View>
 
                   <MaterialCommunityIcons
                     name="arrow-right"
                     size={21}
-                    color="#18a565"
+                    color="#4d806d"
                   />
                 </Pressable>
               </View>
@@ -207,17 +210,17 @@ export default function LandingScreen() {
 
                 <TrustItem
                   icon="clock-fast"
-                  text="Fast"
+                  text="Reliable"
                 />
 
                 <TrustItem
                   icon="cash"
-                  text="Affordable"
+                  text="Fair"
                 />
 
                 <TrustItem
                   icon="map-marker"
-                  text="Rishikesh"
+                  text="Local"
                 />
               </View>
             </View>
@@ -233,8 +236,8 @@ export default function LandingScreen() {
               <View style={styles.illustrationCircle}>
                 <MaterialCommunityIcons
                   name="rickshaw"
-                  size={105}
-                  color="#18a565"
+                  size={100}
+                  color="#4d806d"
                 />
               </View>
 
@@ -247,7 +250,7 @@ export default function LandingScreen() {
               </Text>
 
               <Text style={styles.rightDescription}>
-                One platform for passengers and drivers.
+                One calm platform for passengers and drivers.
               </Text>
 
               <View style={styles.statsRow}>
@@ -283,7 +286,7 @@ export default function LandingScreen() {
             </Text>
 
             <Text style={styles.sectionTitle}>
-              Built for everyone on the road.
+              A calmer way to travel.
             </Text>
 
             <View
@@ -295,7 +298,7 @@ export default function LandingScreen() {
               <FeatureCard
                 icon="account"
                 title="For Passengers"
-                text="Find convenient rides and travel comfortably around Rishikesh."
+                text="Find convenient rides and travel comfortably around beautiful Rishikesh."
               />
 
               <FeatureCard
@@ -307,7 +310,7 @@ export default function LandingScreen() {
               <FeatureCard
                 icon="shield-check"
                 title="Safe & Reliable"
-                text="A trusted platform designed for safer local transportation."
+                text="A trusted platform designed for peaceful and reliable local transportation."
               />
             </View>
           </View>
@@ -320,7 +323,7 @@ export default function LandingScreen() {
             </Text>
 
             <Text style={styles.footerText}>
-              Ride smart. Drive smart. Ride RishiRides.
+              Ride calmly. Drive freely. Explore Rishikesh.
             </Text>
 
             <Text style={styles.copyright}>
@@ -346,8 +349,8 @@ function TrustItem({
     <View style={styles.trustItem}>
       <MaterialCommunityIcons
         name={icon}
-        size={20}
-        color="#fff"
+        size={19}
+        color="#ffffff"
       />
 
       <Text style={styles.trustText}>
@@ -373,8 +376,8 @@ function FeatureCard({
       <View style={styles.featureIcon}>
         <MaterialCommunityIcons
           name={icon}
-          size={27}
-          color="#fff"
+          size={26}
+          color="#ffffff"
         />
       </View>
 
@@ -394,18 +397,35 @@ function FeatureCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111',
+    backgroundColor: '#365c4e',
   },
 
   background: {
     flex: 1,
   },
 
+<<<<<<< HEAD
 overlay: {
   ...StyleSheet.absoluteFill,
   backgroundColor: 'rgba(0,0,0,0.55)',
 },
+=======
+  /*
+   * No StyleSheet.absoluteFillObject here.
+   * This is a normal layout layer.
+   */
+  softBackground: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(28, 55, 47, 0.42)',
+  },
+>>>>>>> 528b960 (remove unnesscary file)
 
+  softGlow: {
+    flex: 1,
+    backgroundColor: 'rgba(232, 244, 238, 0.08)',
+  },
+
+  /* ================= HEADER ================= */
 
   header: {
     width: '92%',
@@ -429,21 +449,21 @@ overlay: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#18a565',
+    backgroundColor: '#4d806d',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 9,
   },
 
   logoRishi: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 2,
   },
 
   logoRides: {
-    color: '#20c478',
+    color: '#a9d6c3',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 2,
@@ -456,13 +476,13 @@ overlay: {
   },
 
   navActive: {
-    color: '#20c478',
+    color: '#b9e2d0',
     fontSize: 12,
     fontWeight: '900',
   },
 
   navText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -475,29 +495,31 @@ overlay: {
   loginButton: {
     paddingHorizontal: 17,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
+    borderColor: 'rgba(255,255,255,0.55)',
   },
 
   loginText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: '800',
   },
 
   signupButton: {
-    backgroundColor: '#18a565',
+    backgroundColor: '#4d806d',
     paddingHorizontal: 17,
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 20,
   },
 
   signupText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: '800',
   },
+
+  /* ================= HERO ================= */
 
   hero: {
     width: '92%',
@@ -526,7 +548,7 @@ overlay: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18a565',
+    backgroundColor: '#dcece5',
     paddingHorizontal: 13,
     paddingVertical: 8,
     borderRadius: 20,
@@ -534,7 +556,7 @@ overlay: {
   },
 
   locationText: {
-    color: '#fff',
+    color: '#315c4d',
     fontSize: 10,
     fontWeight: '900',
     marginLeft: 6,
@@ -542,14 +564,14 @@ overlay: {
   },
 
   heroTitle: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 47,
     fontWeight: '900',
     lineHeight: 53,
   },
 
   heroHighlight: {
-    color: '#20c478',
+    color: '#b5dfcc',
     fontSize: 52,
     fontWeight: '900',
     lineHeight: 59,
@@ -563,6 +585,8 @@ overlay: {
     maxWidth: 570,
   },
 
+  /* ================= ROLE BUTTONS ================= */
+
   roleButtons: {
     marginTop: 28,
     gap: 12,
@@ -571,8 +595,8 @@ overlay: {
 
   roleButton: {
     minHeight: 70,
-    borderRadius: 13,
-    backgroundColor: '#18a565',
+    borderRadius: 18,
+    backgroundColor: '#4d806d',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -580,8 +604,8 @@ overlay: {
 
   driverRoleButton: {
     minHeight: 70,
-    borderRadius: 13,
-    backgroundColor: '#fff',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.94)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -591,7 +615,7 @@ overlay: {
     width: 45,
     height: 45,
     borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -600,7 +624,7 @@ overlay: {
     width: 45,
     height: 45,
     borderRadius: 23,
-    backgroundColor: '#e8f7f0',
+    backgroundColor: '#e4f1eb',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -611,28 +635,30 @@ overlay: {
   },
 
   roleTitle: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 13,
     fontWeight: '900',
   },
 
   roleDescription: {
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.78)',
     fontSize: 11,
     marginTop: 4,
   },
 
   driverRoleTitle: {
-    color: '#222',
+    color: '#29483d',
     fontSize: 13,
     fontWeight: '900',
   },
 
   driverRoleDescription: {
-    color: '#888',
+    color: '#789087',
     fontSize: 11,
     marginTop: 4,
   },
+
+  /* ================= TRUST ================= */
 
   trustRow: {
     flexDirection: 'row',
@@ -647,13 +673,13 @@ overlay: {
   },
 
   trustText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: '700',
     marginLeft: 6,
   },
 
-  /* RIGHT */
+  /* ================= RIGHT ================= */
 
   rightSection: {
     width: '100%',
@@ -670,28 +696,28 @@ overlay: {
     width: 190,
     height: 190,
     borderRadius: 95,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: 'rgba(245,250,247,0.94)',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 10,
+    elevation: 6,
   },
 
   rightTitle: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 22,
     fontWeight: '900',
     marginTop: 25,
   },
 
   rightHighlight: {
-    color: '#20c478',
+    color: '#b5dfcc',
     fontSize: 35,
     fontWeight: '900',
     marginTop: 2,
   },
 
   rightDescription: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.76)',
     fontSize: 12,
     marginTop: 6,
   },
@@ -706,24 +732,24 @@ overlay: {
     minWidth: 78,
     alignItems: 'center',
     padding: 11,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 
   statNumber: {
-    color: '#20c478',
+    color: '#c2e5d5',
     fontSize: 18,
     fontWeight: '900',
   },
 
   statLabel: {
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.68)',
     fontSize: 8,
     fontWeight: '800',
     marginTop: 3,
   },
 
-  /* FEATURES */
+  /* ================= FEATURES ================= */
 
   features: {
     width: '92%',
@@ -732,7 +758,7 @@ overlay: {
   },
 
   sectionSmall: {
-    color: '#20c478',
+    color: '#b5dfcc',
     textAlign: 'center',
     fontSize: 10,
     fontWeight: '900',
@@ -740,7 +766,7 @@ overlay: {
   },
 
   sectionTitle: {
-    color: '#fff',
+    color: '#ffffff',
     textAlign: 'center',
     fontSize: 27,
     fontWeight: '900',
@@ -760,36 +786,36 @@ overlay: {
   featureCard: {
     flex: 1,
     padding: 20,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
 
   featureIcon: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#18a565',
+    backgroundColor: '#4d806d',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 13,
   },
 
   featureTitle: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '900',
     marginBottom: 7,
   },
 
   featureText: {
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 12,
     lineHeight: 18,
   },
 
-  /* FOOTER */
+  /* ================= FOOTER ================= */
 
   footer: {
     width: '92%',
@@ -801,20 +827,20 @@ overlay: {
   },
 
   footerLogo: {
-    color: '#20c478',
+    color: '#b5dfcc',
     fontSize: 17,
     fontWeight: '900',
     letterSpacing: 2,
   },
 
   footerText: {
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.68)',
     fontSize: 11,
     marginTop: 8,
   },
 
   copyright: {
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.42)',
     fontSize: 9,
     marginTop: 13,
   },
