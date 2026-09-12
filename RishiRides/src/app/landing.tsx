@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BACKGROUND_IMAGE =
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBY9Loz0X8m5SKOrILkb6wm6DH5nFBq7hex4Z0YNINvQ&s=10';
+  'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=2000&q=85';
 
 export default function LandingScreen() {
   const router = useRouter();
@@ -404,12 +404,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-<<<<<<< HEAD
-overlay: {
-  ...StyleSheet.absoluteFill,
-  backgroundColor: 'rgba(0,0,0,0.55)',
-},
-=======
   /*
    * No StyleSheet.absoluteFillObject here.
    * This is a normal layout layer.
@@ -418,7 +412,6 @@ overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(28, 55, 47, 0.42)',
   },
->>>>>>> 528b960 (remove unnesscary file)
 
   softGlow: {
     flex: 1,
