@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BACKGROUND_IMAGE =
-  'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=2000&q=85';
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBY9Loz0X8m5SKOrILkb6wm6DH5nFBq7hex4Z0YNINvQ&s=10';
 
 export default function LandingScreen() {
   const router = useRouter();
