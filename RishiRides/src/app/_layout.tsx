@@ -1,22 +1,24 @@
 
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect } from 'react';
-
-SplashScreen.preventAutoHideAsync();
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import SplashScreen from './splash-screen';
 
 export default function RootLayout() {
+  const router = useRouter();
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
-    const hideSplash = async () => {
-      await new Promise(resolve =>
-        setTimeout(resolve, 2500)
-      );
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+      router.replace('/landing');
+    }, 2500);
 
-      await SplashScreen.hideAsync();
-    };
-
-    hideSplash();
+    return () => clearTimeout(timer);
   }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   return (
     <Stack
@@ -26,3 +28,4 @@ export default function RootLayout() {
     />
   );
 }
+
