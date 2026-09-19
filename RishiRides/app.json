@@ -5,35 +5,17 @@
     "slug": "RishiRides",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "rishirides",
     "userInterfaceStyle": "automatic",
-
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#315C4D",
-        "foregroundImage": "./assets/images/icon.png"
-      }
-    },
-
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/icon.png"
-    },
-
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#315C4D",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 120,
-          "resizeMode": "contain"
+          "backgroundColor": "#315C4D"
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true
     }
