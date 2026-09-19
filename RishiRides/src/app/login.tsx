@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { loginUser } from '../api/login';
 
 type UserRole = 'passenger' | 'driver';
 
@@ -57,27 +58,34 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      /*
-       * Temporary login.
-       *
-       * Later your backend API can be connected here.
-       */
+      const result = await loginUser({
+        mobile: cleanMobile,
+        password,
+        role,
+      });
 
-      await AsyncStorage.setItem('isLoggedIn', 'true');
-      await AsyncStorage.setItem('userRole', role);
-      await AsyncStorage.setItem('userMobile', cleanMobile);
+      await AsyncStorage.multiSet([
+        ['pendingSessionId', result.sessionId],
+        ['pendingMobile', result.mobile],
+        ['pendingRole', result.role],
+      ]);
 
-      if (role === 'passenger') {
-        router.replace('../dashboards/passenger/passenger-dashboard');
-      } else {
-        router.replace('../dashboards/driver/driver-dashboard');
-      }
+      router.push({
+        pathname: '/otp',
+        params: {
+          sessionId: result.sessionId,
+          mobile: result.mobile,
+          role: result.role,
+        },
+      });
     } catch (error) {
       console.error('Login error:', error);
 
       Alert.alert(
         'Login Error',
-        'Something went wrong. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please try again.'
       );
     } finally {
       setLoading(false);
