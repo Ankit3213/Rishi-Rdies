@@ -58,26 +58,21 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      const result = await loginUser({
-        mobile: cleanMobile,
-        password,
-        role,
-      });
+      /*
+       * Temporary login.
+       *
+       * Later your backend API can be connected here.
+       */
 
-      await AsyncStorage.multiSet([
-        ['pendingSessionId', result.sessionId],
-        ['pendingMobile', result.mobile],
-        ['pendingRole', result.role],
-      ]);
+      await AsyncStorage.setItem('isLoggedIn', 'true');
+      await AsyncStorage.setItem('userRole', role);
+      await AsyncStorage.setItem('userMobile', cleanMobile);
 
-      router.push({
-        pathname: '/otp',
-        params: {
-          sessionId: result.sessionId,
-          mobile: result.mobile,
-          role: result.role,
-        },
-      });
+      if (role === 'passenger') {
+        router.replace('../dashboards/passenger/passenger-dashboard');
+      } else {
+        router.replace('../dashboards/driver/driver-dashboard');
+      }
     } catch (error) {
       console.error('Login error:', error);
 
@@ -108,7 +103,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* BACK */}
+        {/* BACK BUTTON */}
         <Pressable
           style={styles.backButton}
           onPress={() => router.back()}
@@ -125,7 +120,7 @@ export default function LoginScreen() {
           <View style={styles.logoCircle}>
             <MaterialCommunityIcons
               name="rickshaw"
-              size={36}
+              size={34}
               color="#ffffff"
             />
           </View>
@@ -134,14 +129,19 @@ export default function LoginScreen() {
           <Text style={styles.logoTextGreen}>RIDES</Text>
         </View>
 
-        <Text style={styles.title}>Welcome Back</Text>
+        {/* TITLE */}
+        <Text style={styles.title}>
+          Welcome Back
+        </Text>
 
         <Text style={styles.subtitle}>
           Login to continue with RishiRides
         </Text>
 
         {/* ROLE */}
-        <Text style={styles.label}>LOGIN AS</Text>
+        <Text style={styles.label}>
+          LOGIN AS
+        </Text>
 
         <View style={styles.roleContainer}>
           {/* PASSENGER */}
@@ -184,7 +184,7 @@ export default function LoginScreen() {
             {role === 'passenger' && (
               <MaterialCommunityIcons
                 name="check-circle"
-                size={20}
+                size={21}
                 color="#16a34a"
               />
             )}
@@ -230,16 +230,18 @@ export default function LoginScreen() {
             {role === 'driver' && (
               <MaterialCommunityIcons
                 name="check-circle"
-                size={20}
+                size={21}
                 color="#16a34a"
               />
             )}
           </Pressable>
         </View>
 
-        {/* MOBILE */}
+        {/* MOBILE NUMBER */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>MOBILE NUMBER</Text>
+          <Text style={styles.label}>
+            MOBILE NUMBER
+          </Text>
 
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons
@@ -253,11 +255,13 @@ export default function LoginScreen() {
               placeholder="Enter 10-digit mobile number"
               placeholderTextColor="#94a3b8"
               value={mobile}
-              onChangeText={(text) =>
-                setMobile(
-                  text.replace(/\D/g, '').slice(0, 10)
-                )
-              }
+              onChangeText={(text) => {
+                const cleaned = text
+                  .replace(/\D/g, '')
+                  .slice(0, 10);
+
+                setMobile(cleaned);
+              }}
               keyboardType="phone-pad"
               maxLength={10}
             />
@@ -266,7 +270,9 @@ export default function LoginScreen() {
 
         {/* PASSWORD */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>PASSWORD</Text>
+          <Text style={styles.label}>
+            PASSWORD
+          </Text>
 
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons
@@ -286,7 +292,7 @@ export default function LoginScreen() {
 
             <Pressable
               onPress={() =>
-                setShowPassword(!showPassword)
+                setShowPassword((previous) => !previous)
               }
               hitSlop={10}
             >
@@ -303,7 +309,7 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* FORGOT */}
+        {/* FORGOT PASSWORD */}
         <Pressable
           style={styles.forgotButton}
           onPress={() =>
@@ -318,7 +324,7 @@ export default function LoginScreen() {
           </Text>
         </Pressable>
 
-        {/* LOGIN */}
+        {/* LOGIN BUTTON */}
         <Pressable
           style={[
             styles.loginButton,
@@ -331,11 +337,9 @@ export default function LoginScreen() {
           <Text style={styles.loginButtonText}>
             {loading
               ? 'LOGGING IN...'
-              : `LOGIN AS ${
-                  role === 'passenger'
-                    ? 'PASSENGER'
-                    : 'DRIVER'
-                }`}
+              : role === 'passenger'
+                ? 'LOGIN AS PASSENGER'
+                : 'LOGIN AS DRIVER'}
           </Text>
 
           {!loading && (
@@ -347,7 +351,7 @@ export default function LoginScreen() {
           )}
         </Pressable>
 
-        {/* SIGNUP */}
+        {/* SIGN UP */}
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>
             Don't have an account?
