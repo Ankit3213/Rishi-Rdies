@@ -67,15 +67,8 @@ export default function SignupScreen() {
     }
 
     Alert.alert(
-      'Account Created',
-      `Your ${role} account has been created.`,
-      [
-        {
-          text: 'Continue',
-          onPress: () =>
-            router.replace('/login'),
-        },
-      ]
+      'Sign-up unavailable',
+      'Account creation is not connected to a secure authentication service. No account has been created.'
     );
   };
 

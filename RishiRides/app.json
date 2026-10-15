@@ -14,6 +14,12 @@
         {
           "backgroundColor": "#315C4D"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "RishiRide uses your location to set your pickup point when you ask it to."
+        }
       ]
     ],
     "experiments": {

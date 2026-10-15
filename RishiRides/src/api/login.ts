@@ -5,7 +5,6 @@ export type LoginResponse = {
   mobile: string;
   role: UserRole;
   maskedMobile: string;
-  demoOtp?: string;
 };
 
 type LoginRequest = {
@@ -20,7 +19,7 @@ export async function loginUser(
   request: LoginRequest
 ): Promise<LoginResponse> {
   if (!API_BASE_URL) {
-    return createLocalLoginResponse(request);
+    throw new Error('Sign-in is unavailable because the authentication service is not configured.');
   }
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -34,18 +33,4 @@ export async function loginUser(
   }
 
   return response.json() as Promise<LoginResponse>;
-}
-
-function createLocalLoginResponse(
-  request: LoginRequest
-): LoginResponse {
-  const sessionId = `local-${Date.now()}`;
-
-  return {
-    sessionId,
-    mobile: request.mobile,
-    role: request.role,
-    maskedMobile: `******${request.mobile.slice(-4)}`,
-    demoOtp: '123456',
-  };
 }

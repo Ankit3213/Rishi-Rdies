@@ -15,11 +15,7 @@ export async function verifyOtp(
   request: OtpRequest
 ): Promise<OtpResponse> {
   if (!API_BASE_URL) {
-    if (request.otp !== '123456') {
-      throw new Error('The OTP is incorrect.');
-    }
-
-    return { verified: true, token: request.sessionId };
+    throw new Error('Verification is unavailable because the authentication service is not configured.');
   }
 
   const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
@@ -40,7 +36,7 @@ export async function resendOtp(
   mobile: string
 ): Promise<void> {
   if (!API_BASE_URL) {
-    return;
+    throw new Error('OTP delivery is unavailable because the authentication service is not configured.');
   }
 
   const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {

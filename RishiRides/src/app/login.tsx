@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -58,24 +57,21 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      /*
-       * Temporary login.
-       *
-       * Later your backend API can be connected here.
-       */
+      const response = await loginUser({
+        mobile: cleanMobile,
+        password,
+        role,
+      });
 
-      await AsyncStorage.setItem('isLoggedIn', 'true');
-      await AsyncStorage.setItem('userRole', role);
-      await AsyncStorage.setItem('userMobile', cleanMobile);
-
-      if (role === 'passenger') {
-        router.replace('../dashboards/passenger/passenger-dashboard');
-      } else {
-        router.replace('../dashboards/driver/driver-dashboard');
-      }
+      router.push({
+        pathname: '/otp',
+        params: {
+          mobile: response.mobile,
+          role: response.role,
+          sessionId: response.sessionId,
+        },
+      });
     } catch (error) {
-      console.error('Login error:', error);
-
       Alert.alert(
         'Login Error',
         error instanceof Error

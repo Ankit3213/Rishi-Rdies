@@ -133,9 +133,6 @@ export default function OtpScreen() {
           <Text style={styles.resendText}>Resend OTP</Text>
         </Pressable>
 
-        {!process.env.EXPO_PUBLIC_API_URL && (
-          <Text style={styles.demoText}>Demo OTP: 123456</Text>
-        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -194,5 +191,4 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.65 },
   verifyText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   resendText: { color: '#15803d', fontSize: 14, fontWeight: '800', textAlign: 'center', marginTop: 25 },
-  demoText: { color: '#64748b', fontSize: 12, textAlign: 'center', marginTop: 35 },
 });
