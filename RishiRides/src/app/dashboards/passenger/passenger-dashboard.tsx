@@ -1,15 +1,17 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vehicleForPassengerCount } from '../../../domain/ride-rules';
@@ -30,8 +32,13 @@ const destinations = [
 export default function PassengerDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const desktop = width >= 900;
   const [pickup, setPickup] = useState('');
   const [destination, setDestination] = useState('');
+  const [riderMobile, setRiderMobile] = useState('');
+  const [authReady, setAuthReady] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [pickupCoordinates, setPickupCoordinates] = useState<Location.LocationObjectCoords | null>(null);
   const [passengerCount, setPassengerCount] = useState(1);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -39,6 +46,40 @@ export default function PassengerDashboard() {
   const [bookingMessage, setBookingMessage] = useState('');
 
   const vehicle = useMemo(() => vehicleForPassengerCount(passengerCount), [passengerCount]);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.multiGet(['isLoggedIn', 'userRole', 'userMobile'])
+      .then((entries) => {
+        if (!active) return;
+        const values = Object.fromEntries(entries);
+        if (values.isLoggedIn !== 'true' || values.userRole !== 'passenger') {
+          router.replace({ pathname: '/login', params: { role: 'passenger', flow: 'booking' } });
+          return;
+        }
+        setRiderMobile(values.userMobile ?? '');
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (active) {
+          setBookingMessage('Could not verify your saved sign-in. Please sign in again.');
+          router.replace({ pathname: '/login', params: { role: 'passenger', flow: 'booking' } });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(['isLoggedIn', 'userRole', 'userMobile', 'authToken']);
+      router.replace('/landing');
+    } catch {
+      setBookingMessage('Could not safely sign out. Please try again.');
+    }
+  };
 
   const useCurrentLocation = async () => {
     setLocationLoading(true);
@@ -93,30 +134,57 @@ export default function PassengerDashboard() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, styles.contentWidth]}>
         <View style={styles.header}>
           <View style={styles.brand}>
             <View style={styles.logoMark}>
-              <MaterialCommunityIcons name="rickshaw" size={24} color="#071b1b" />
+              <MaterialCommunityIcons name="rickshaw" size={24} color={colors.green} />
             </View>
             <View>
               <Text style={styles.brandName}>RishiRide</Text>
-              <Text style={styles.brandLocation}>RISHIKESH, INDIA</Text>
+              <Text style={styles.brandLocation}>Ride Local. Go Far.</Text>
             </View>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open profile" style={styles.profileButton} onPress={() => router.push('/login')}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={profileOpen ? 'Close profile menu' : 'Open profile menu'}
+            accessibilityState={{ expanded: profileOpen }}
+            style={styles.profileButton}
+            onPress={() => setProfileOpen((open) => !open)}
+          >
             <MaterialCommunityIcons name="account-outline" size={22} color={colors.text} />
           </Pressable>
         </View>
 
-        <View style={styles.eyebrowRow}>
-          <View style={styles.liveDot} />
-          <Text style={styles.eyebrow}>LOCAL RIDES, MADE SIMPLE</Text>
-        </View>
-        <Text style={styles.title}>Where to?</Text>
-        <Text style={styles.subtitle}>A ride across the valley, on your terms.</Text>
+        {profileOpen && (
+          <View style={styles.profileMenu}>
+            <View style={styles.profileSummary}>
+              <View style={styles.profileAvatar}>
+                <MaterialCommunityIcons name="account" size={20} color={colors.green} />
+              </View>
+              <View style={styles.profileDetails}>
+                <Text style={styles.profileName}>Passenger account</Text>
+                <Text style={styles.profileMobile}>{riderMobile}</Text>
+              </View>
+            </View>
+            <Pressable accessibilityRole="button" style={styles.logoutButton} onPress={handleLogout}>
+              <MaterialCommunityIcons name="logout" size={17} color="#B7463C" />
+              <Text style={styles.logoutText}>Sign out</Text>
+            </Pressable>
+          </View>
+        )}
 
-        <View style={styles.bookingPanel}>
+        <View style={[styles.heroSection, desktop && styles.heroSectionDesktop]}>
+          <View style={[styles.heroCopy, desktop && styles.heroCopyDesktop]}>
+            <View style={styles.eyebrowRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.eyebrow}>LOCAL RIDES, MADE SIMPLE</Text>
+            </View>
+            <Text style={styles.title}>Good Morning,</Text>
+            <Text style={styles.greetingName}>Rider!</Text>
+            <Text style={styles.subtitle}>Where would you like to go today?</Text>
+
+            <View style={styles.bookingPanel}>
           <View style={styles.fieldRow}>
             <View style={styles.routeDots}>
               <View style={styles.pickupDot} />
@@ -156,7 +224,7 @@ export default function PassengerDashboard() {
           </View>
 
           <Pressable accessibilityRole="button" style={[styles.gpsButton, locationLoading && styles.disabled]} onPress={useCurrentLocation} disabled={locationLoading}>
-            <MaterialCommunityIcons name="crosshairs-gps" size={19} color={colors.mint} />
+            <MaterialCommunityIcons name="crosshairs-gps" size={19} color={colors.green} />
             <Text style={styles.gpsText}>{locationLoading ? 'Finding your location…' : 'Use my current location'}</Text>
           </Pressable>
           {!!locationMessage && <Text accessibilityLiveRegion="polite" style={styles.noticeText}>{locationMessage}</Text>}
@@ -178,20 +246,36 @@ export default function PassengerDashboard() {
           </View>
 
           <View style={styles.vehicleStrip}>
-            <MaterialCommunityIcons name="rickshaw" size={20} color={colors.mint} />
+            <MaterialCommunityIcons name="rickshaw" size={20} color={colors.green} />
             <Text style={styles.vehicleText}>{vehicle}</Text>
             <Text style={styles.capacityText}>{passengerCount <= 3 ? 'UP TO 3' : '4+ PASSENGERS'}</Text>
           </View>
 
           <Pressable accessibilityRole="button" style={styles.bookButton} onPress={submitBooking}>
-            <Text style={styles.bookButtonText}>Find a ride</Text>
-            <MaterialCommunityIcons name="arrow-right" size={20} color={colors.ink} />
+            <Text style={styles.bookButtonText}>Book Ride</Text>
+            <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
           </Pressable>
           {!!bookingMessage && <Text accessibilityRole="alert" style={styles.bookingError}>{bookingMessage}</Text>}
+            </View>
+          </View>
+
+          <View style={[styles.heroArtwork, !desktop && styles.heroArtworkMobile]}>
+            <LinearGradient
+              colors={['#DCEFFC', '#EAF8F0', '#F6F5E9']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.artSun} />
+            <View style={styles.artMountainBack} />
+            <View style={styles.artMountainFront} />
+            <View style={styles.artRiver} />
+            <View style={styles.artRoad} />
+            <Text style={styles.artCaption}>Rishikesh{'\n'}Awaits!</Text>
+            <MaterialCommunityIcons name="rickshaw" size={desktop ? 190 : 155} color={colors.green} style={styles.artRickshaw} />
+          </View>
         </View>
 
         <View style={styles.serviceNote}>
-          <MaterialCommunityIcons name="information-outline" size={19} color={colors.amber} />
+          <MaterialCommunityIcons name="information-outline" size={19} color={colors.green} />
           <Text style={styles.serviceNoteText}>
             {bookingConfigured
               ? 'Route estimates and ride dispatch are not available from the configured service yet.'
@@ -204,49 +288,72 @@ export default function PassengerDashboard() {
             <Text style={styles.sectionKicker}>A FEW PLACES TO START</Text>
             <Text style={styles.sectionTitle}>Around Rishikesh</Text>
           </View>
-          <MaterialCommunityIcons name="map-outline" size={22} color={colors.mint} />
+          <MaterialCommunityIcons name="map-outline" size={22} color={colors.green} />
         </View>
         <View style={styles.destinationGrid}>
           {destinations.map((place, index) => (
             <Pressable key={place} accessibilityRole="button" style={styles.destination} onPress={() => setDestination(place)}>
-              <View style={styles.destinationIndex}><Text style={styles.destinationNumber}>{String(index + 1).padStart(2, '0')}</Text></View>
-              <Text style={styles.destinationName}>{place}</Text>
-              <MaterialCommunityIcons name="arrow-top-left" size={17} color={colors.muted} />
+              <LinearGradient
+                colors={destinationColors[index % destinationColors.length]}
+                style={styles.destinationArt}
+              >
+                <MaterialCommunityIcons name={destinationIcons[index % destinationIcons.length]} size={28} color="#FFFFFF" />
+                <Text style={styles.destinationNumber}>{String(index + 1).padStart(2, '0')}</Text>
+              </LinearGradient>
+              <View style={styles.destinationCaption}>
+                <Text style={styles.destinationName}>{place}</Text>
+                <MaterialCommunityIcons name="arrow-top-right" size={15} color={colors.green} />
+              </View>
             </Pressable>
           ))}
         </View>
 
-        <View style={styles.footerNav}>
-          <Pressable accessibilityRole="button" style={styles.navItem} onPress={() => router.push('/login')}>
-            <MaterialCommunityIcons name="history" size={20} color={colors.muted} />
-            <Text style={styles.navText}>Rides</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={styles.navItem} onPress={() => Alert.alert('Driver directory unavailable', 'Driver availability and distance must come from a configured secure service.') }>
-            <MaterialCommunityIcons name="account-search-outline" size={20} color={colors.muted} />
-            <Text style={styles.navText}>Drivers</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={styles.navItem} onPress={() => router.push('/landing')}>
-            <MaterialCommunityIcons name="rickshaw" size={20} color={colors.mint} />
-            <Text style={[styles.navText, styles.navTextActive]}>Book</Text>
-          </Pressable>
+        <View style={styles.footer}>
+          <Text style={styles.footerBrand}>Rishi<Text style={styles.footerAccent}>Ride</Text></Text>
+          <View style={styles.footerLinks}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/landing')}>
+              <Text style={styles.footerLink}>Home</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/about')}>
+              <Text style={styles.footerLink}>About</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/contact')}>
+              <Text style={styles.footerLink}>Contact</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.footerCopyright}>© 2026 RishiRide · Rishikesh</Text>
         </View>
-        <Text style={styles.footerBrand}>RISHIRIDE  ·  RISHIKESH</Text>
         {pickupCoordinates && <Text style={styles.locationPrivacy}>Your device provided a pickup location; coordinates are not displayed.</Text>}
       </ScrollView>
     </View>
   );
 }
 
+const destinationColors = [
+  ['#82B9A6', '#1A7058'],
+  ['#8BB5C5', '#357F91'],
+  ['#A6B884', '#607A49'],
+  ['#D7AE76', '#A66F3D'],
+] as const;
+
+const destinationIcons: (keyof typeof MaterialCommunityIcons.glyphMap)[] = [
+  'temple-buddhist',
+  'bridge',
+  'water',
+  'pine-tree',
+];
+
 const colors = {
-  ink: '#081313',
-  background: '#0b1718',
-  panel: '#122223',
-  panelRaised: '#192c2d',
-  line: '#294142',
-  text: '#f3f5ed',
-  muted: '#9aadaa',
-  mint: '#9de4c1',
-  amber: '#e9b769',
+  ink: '#15323A',
+  background: '#FFFFFF',
+  panel: '#FFFFFF',
+  panelRaised: '#E8F5EB',
+  line: '#E2ECE6',
+  text: '#1C333B',
+  muted: '#73858A',
+  mint: '#C8F3D8',
+  green: '#078653',
+  amber: '#8B6B31',
 };
 
 const styles = StyleSheet.create({
