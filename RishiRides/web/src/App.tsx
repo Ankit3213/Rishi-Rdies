@@ -1,25 +1,28 @@
 import {
-  ArrowDownRight,
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  Check,
+  CalendarDays,
   ChevronDown,
+  CircleHelp,
   Compass,
+  Clock3,
   LocateFixed,
   MapPin,
   Menu,
   Navigation,
+  Plus,
   Search,
   ShieldCheck,
-  Sparkles,
+  Minus,
+  Users,
   X,
 } from 'lucide-react';
-import { FormEvent, useEffect, useState } from 'react';
-import { Link, NavLink, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Destination, destinations } from './data/destinations';
 
-const apiBase = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+const apiBase = (import.meta as ImportMeta & { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL?.replace(/\/$/, '');
 
 export default function App() {
   return (
@@ -27,7 +30,10 @@ export default function App() {
       <SiteHeader />
       <main id="main-content">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<PassengerDashboard />} />
+          <Route path="/welcome" element={<HomePage />} />
+          <Route path="/dashboard" element={<PassengerDashboard />} />
+          <Route path="/booking" element={<BookingPage />} />
           <Route path="/destinations" element={<DestinationsPage />} />
           <Route path="/destinations/:slug" element={<DestinationPage />} />
           <Route path="/sign-in" element={<AccountPage mode="sign-in" />} />
@@ -41,6 +47,7 @@ export default function App() {
         </Routes>
       </main>
       <SiteFooter />
+      <MobileNav />
     </div>
   );
 }
@@ -48,7 +55,8 @@ export default function App() {
 function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const links = [
-    { to: '/', label: 'Book a ride', end: true },
+    { to: '/', label: 'Dashboard', end: true },
+    { to: '/booking', label: 'Book a ride', end: true },
     { to: '/destinations', label: 'Places', end: false },
     { to: '/services', label: 'Services', end: false },
     { to: '/faqs', label: 'FAQs', end: false },
@@ -66,10 +74,6 @@ function SiteHeader() {
         </button>
         <nav className={`primary-nav ${menuOpen ? 'nav-open' : ''}`} aria-label="Main navigation">
           {links.map((link) => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)}>{link.label}</NavLink>)}
-          <div className="nav-account">
-            <Link to="/sign-in" className="nav-sign-in">Sign in</Link>
-            <Link to="/sign-up" className="nav-join">Join RishiRide <ArrowUpRight size={14} /></Link>
-          </div>
         </nav>
       </div>
     </header>
@@ -166,11 +170,12 @@ function BookingForm() {
 
   const submitBooking = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setNotice(!pickup.trim()
-      ? 'Add a pickup point before requesting a ride.'
-      : !dropoff.trim()
-        ? 'Add a destination before requesting a ride.'
-        : 'Booking is not available yet. Your request has not been sent.');
+    if (!pickup.trim() || !dropoff.trim()) {
+      setNotice(!pickup.trim() ? 'Add a pickup point before continuing.' : 'Add a destination before continuing.');
+      return;
+    }
+    const params = new URLSearchParams({ pickup: pickup.trim(), destination: dropoff.trim(), passengers: String(partySize) });
+    navigate(`/booking?${params.toString()}`);
   };
 
   return (
@@ -195,10 +200,220 @@ function BookingForm() {
           <div className="stepper"><button type="button" aria-label="Remove passenger" onClick={() => setPartySize((size) => Math.max(1, size - 1))}>−</button><span aria-live="polite">{partySize}</span><button type="button" aria-label="Add passenger" onClick={() => setPartySize((size) => Math.min(6, size + 1))}>+</button></div>
         </div>
         <div className="vehicle-indicator"><span className="vehicle-icon"><Navigation size={16} /></span><span><span className="field-label">VEHICLE</span><strong>{vehicle}</strong></span></div>
-        <button type="submit" className="book-submit">Check availability <ArrowRight size={16} /></button>
+        <button type="submit" className="book-submit">Continue to booking <ArrowRight size={16} /></button>
       </div>
       <p className="booking-fineprint"><ShieldCheck size={14} /> Requests are not sent until secure booking is available.</p>
     </form>
+  );
+}
+
+function PassengerDashboard() {
+  const featuredPlaces = destinations.filter((place) => place.photoUrl).slice(0, 3);
+  const [livePosition, setLivePosition] = useState<GeolocationPosition | null>(null);
+  const [locationMessage, setLocationMessage] = useState('');
+  const watchId = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
+  }, []);
+
+  const stopLocation = () => {
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    setLivePosition(null);
+    setLocationMessage('Live location sharing is off.');
+  };
+
+  const startLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage('Location is not supported on this device or browser.');
+      return;
+    }
+    setLocationMessage('Waiting for location permission…');
+    watchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setLivePosition(position);
+        setLocationMessage('');
+      },
+      (error) => {
+        setLocationMessage(error.code === error.PERMISSION_DENIED
+          ? 'Location permission was denied. You can enable it in your browser or device settings.'
+          : error.code === error.TIMEOUT
+            ? 'Could not get a location fix in time. Try again or check your device signal.'
+            : 'Could not read your location. Check your device settings and try again.');
+        if (watchId.current !== null) {
+          navigator.geolocation.clearWatch(watchId.current);
+          watchId.current = null;
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    );
+  };
+
+  const coordinatePickup = livePosition
+    ? `Current location (${livePosition.coords.latitude.toFixed(5)}, ${livePosition.coords.longitude.toFixed(5)})`
+    : '';
+
+  return (
+    <div className="page-wrap dashboard-page">
+      <section className="dashboard-welcome">
+        <div className="dashboard-welcome-copy">
+          <p className="eyebrow"><span className="eyebrow-line" /> YOUR RISHIRIDE</p>
+          <h1>Good morning,<br /><em>Rider.</em></h1>
+          <p className="page-deck">Your next local journey starts here. Pick a place and we’ll help with the rest.</p>
+          <Link className="dashboard-primary" to="/booking">Plan a ride <ArrowRight size={16} /></Link>
+        </div>
+        <div className="dashboard-welcome-image">
+          <img src={destinations[0].photoUrl ?? ''} alt="Evening aarti on the river at Triveni Ghat" />
+          <span className="dashboard-image-caption"><MapPin size={14} /> RISHIKESH, UTTARAKHAND</span>
+          <span className="dashboard-image-index">30°06′ N<br />78°18′ E</span>
+        </div>
+      </section>
+
+      <section className="dashboard-shortcuts" aria-label="Passenger shortcuts">
+        <Link to="/booking" className="shortcut-card"><span className="shortcut-icon"><Navigation size={19} /></span><span><strong>Book a ride</strong><small>Set pickup and destination</small></span><ArrowUpRight size={16} /></Link>
+        <Link to="/destinations" className="shortcut-card"><span className="shortcut-icon"><Compass size={19} /></span><span><strong>Explore places</strong><small>Find a stop around town</small></span><ArrowUpRight size={16} /></Link>
+        <Link to="/faqs" className="shortcut-card"><span className="shortcut-icon"><CircleHelp size={19} /></span><span><strong>Ride help</strong><small>How RishiRide works</small></span><ArrowUpRight size={16} /></Link>
+      </section>
+
+      <section className="live-location-card" aria-labelledby="live-location-title">
+        <span className={`live-location-icon ${livePosition ? 'is-live' : ''}`}><LocateFixed size={20} /></span>
+        <div className="live-location-copy">
+          <p className="eyebrow">YOUR DEVICE LOCATION</p>
+          <h2 id="live-location-title">{livePosition ? 'Live location is on' : 'Find your current location'}</h2>
+          {livePosition
+            ? <p>Updated {new Date(livePosition.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · Accuracy ±{Math.round(livePosition.coords.accuracy)} m<br />{livePosition.coords.latitude.toFixed(5)}, {livePosition.coords.longitude.toFixed(5)}</p>
+            : <p>Turn this on to use your phone or laptop’s location. Your browser will ask permission first.</p>}
+          {locationMessage && <p className="live-location-message" role="status">{locationMessage}</p>}
+        </div>
+        {livePosition
+          ? <div className="live-location-actions"><Link className="location-use-link" to={`/booking?pickup=${encodeURIComponent(coordinatePickup)}`}>Use for booking <ArrowRight size={14} /></Link><button className="location-stop-button" onClick={stopLocation}>Stop sharing</button></div>
+          : <button className="location-start-button" onClick={startLocation}><LocateFixed size={15} /> Share live location</button>}
+      </section>
+
+      <section className="dashboard-activity">
+        <div className="dashboard-section-heading">
+          <div><p className="eyebrow">YOUR JOURNEYS</p><h2>Upcoming rides</h2></div>
+          <span className="preview-tag">PREVIEW</span>
+        </div>
+        <div className="activity-empty">
+          <span className="activity-icon"><CalendarDays size={21} /></span>
+          <div><strong>No rides planned yet</strong><p>When booking is available, your upcoming trips will show up here.</p></div>
+          <Link className="text-link" to="/booking">Plan a ride <ArrowRight size={15} /></Link>
+        </div>
+        <p className="booking-fineprint"><ShieldCheck size={14} /> Booking is not connected yet. No ride requests are sent from this preview.</p>
+      </section>
+
+      <section className="dashboard-places">
+        <div className="discover-head">
+          <div><p className="eyebrow">A LITTLE INSPIRATION</p><h2>Good places to go.</h2></div>
+          <Link className="text-link" to="/destinations">All destinations <ArrowRight size={15} /></Link>
+        </div>
+        <div className="feature-destinations">
+          {featuredPlaces.map((place, index) => <DestinationCard key={place.slug} destination={place} index={index} />)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function BookingPage() {
+  const [searchParams] = useSearchParams();
+  const [pickup, setPickup] = useState(searchParams.get('pickup') ?? '');
+  const [dropoff, setDropoff] = useState(searchParams.get('destination') ?? '');
+  const requestedPassengers = Number(searchParams.get('passengers'));
+  const [partySize, setPartySize] = useState(Number.isInteger(requestedPassengers) && requestedPassengers >= 1 && requestedPassengers <= 6 ? requestedPassengers : 1);
+  const [notice, setNotice] = useState('');
+  const [locationBusy, setLocationBusy] = useState(false);
+  const vehicle = partySize <= 3 ? 'E-rickshaw' : 'CNG auto-rickshaw';
+
+  const requestLocation = () => {
+    setNotice('');
+    if (!navigator.geolocation) {
+      setNotice('Location access is unavailable in this browser. Enter your pickup point instead.');
+      return;
+    }
+    setLocationBusy(true);
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      if (!apiBase) {
+        setNotice('Location name unavailable because the geocoding service is not configured. Enter a pickup point or try again later.');
+        setLocationBusy(false);
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBase}/geo/reverse-geocode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude }),
+        });
+        if (!response.ok) throw new Error('Reverse geocoding failed.');
+        const result: { name?: string } = await response.json();
+        if (!result.name?.trim()) throw new Error('No readable place name was returned.');
+        setPickup(result.name);
+        setNotice('Pickup set from your current location.');
+      } catch {
+        setNotice('Location name unavailable. Enter a pickup point or retry.');
+      } finally {
+        setLocationBusy(false);
+      }
+    }, (error) => {
+      setLocationBusy(false);
+      setNotice(error.code === error.PERMISSION_DENIED
+        ? 'Location permission was denied. Enter a pickup point manually to continue.'
+        : 'Could not determine your location. Enter a pickup point or retry.');
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 30000 });
+  };
+
+  const submitBooking = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNotice('Ride booking is not available yet. Your request has not been sent.');
+  };
+
+  return (
+    <div className="page-wrap inner-page booking-page">
+      <Link to="/dashboard" className="back-link"><ArrowLeft size={15} /> Passenger dashboard</Link>
+      <div className="booking-page-heading">
+        <div><p className="eyebrow">A LOCAL RIDE, YOUR WAY</p><h1>Plan your <em>journey.</em></h1><p className="page-deck">Add your trip details to see the right ride for your group.</p></div>
+        <span className="booking-step"><span>01</span> TRIP DETAILS</span>
+      </div>
+      <div className="booking-page-layout">
+        <form className="booking-page-form" onSubmit={submitBooking}>
+          <section className="booking-form-section">
+            <div className="form-section-title"><span>01</span><div><h2>Where to?</h2><p>Choose your pickup and destination.</p></div></div>
+            <label className="booking-page-field"><span className="route-point pickup-point" /><span><small>PICKUP POINT</small><input required value={pickup} onChange={(event) => setPickup(event.target.value)} placeholder="Enter your pickup location" autoComplete="street-address" /></span></label>
+            <button type="button" className="location-text-action booking-location-action" onClick={requestLocation} disabled={locationBusy}><LocateFixed size={15} />{locationBusy ? 'Finding pickup…' : 'Use current location'}</button>
+            <label className="booking-page-field"><span className="route-point destination-point" /><span><small>DESTINATION</small><input required value={dropoff} onChange={(event) => setDropoff(event.target.value)} placeholder="Where do you want to go?" autoComplete="off" /></span></label>
+            {notice && <p className="form-notice booking-notice" role="alert">{notice}</p>}
+          </section>
+          <section className="booking-form-section">
+            <div className="form-section-title"><span>02</span><div><h2>Ride details</h2><p>We’ll match the vehicle to your group.</p></div></div>
+            <div className="ride-details-grid">
+              <div className="ride-detail-control"><span className="detail-control-icon"><Users size={17} /></span><span><small>PASSENGERS</small><strong>{partySize} {partySize === 1 ? 'person' : 'people'}</strong></span><div className="stepper"><button type="button" aria-label="Remove passenger" disabled={partySize <= 1} onClick={() => setPartySize((size) => Math.max(1, size - 1))}><Minus size={13} /></button><button type="button" aria-label="Add passenger" disabled={partySize >= 6} onClick={() => setPartySize((size) => Math.min(6, size + 1))}><Plus size={13} /></button></div></div>
+              <label className="ride-detail-control"><span className="detail-control-icon"><CalendarDays size={17} /></span><span><small>RIDE DATE</small><input type="date" min={new Date().toISOString().slice(0, 10)} aria-label="Ride date" /></span></label>
+              <label className="ride-detail-control"><span className="detail-control-icon"><Clock3 size={17} /></span><span><small>RIDE TIME</small><input type="time" aria-label="Ride time" /></span></label>
+            </div>
+          </section>
+          <button type="submit" className="booking-confirm-button">Check ride availability <ArrowRight size={16} /></button>
+          <p className="booking-fineprint"><ShieldCheck size={14} /> No ride request is sent until secure booking is available.</p>
+        </form>
+        <aside className="booking-summary">
+          <p className="eyebrow">YOUR RIDE</p><h2>Trip summary</h2>
+          <div className="summary-route"><span className="route-point pickup-point" /><span className="summary-route-copy"><small>PICKUP</small><strong>{pickup.trim() || 'Add a pickup point'}</strong></span></div>
+          <div className="summary-route"><span className="route-point destination-point" /><span className="summary-route-copy"><small>DESTINATION</small><strong>{dropoff.trim() || 'Choose a destination'}</strong></span></div>
+          <div className="summary-divider" />
+          <div className="summary-vehicle"><span className="vehicle-icon"><Navigation size={16} /></span><span><small>RECOMMENDED VEHICLE</small><strong>{vehicle}</strong></span></div>
+          <p className="summary-capacity">{partySize <= 3 ? 'Comfortable for up to 3 passengers' : 'For groups of 4–6 passengers'}</p>
+          <div className="summary-unavailable"><ShieldCheck size={16} /><span>Fare estimates and driver matching will appear when booking launches.</span></div>
+        </aside>
+      </div>
+      <section className="booking-discover">
+        <div className="discover-head"><div><p className="eyebrow">STILL DECIDING?</p><h2>Explore destinations.</h2></div><Link className="text-link" to="/destinations">Browse all places <ArrowRight size={15} /></Link></div>
+        <div className="booking-destination-links">{destinations.slice(0, 4).map((place) => <Link key={place.slug} to={`/booking?destination=${encodeURIComponent(place.name)}`}><MapPin size={14} />{place.name}<ArrowUpRight size={14} /></Link>)}</div>
+      </section>
+    </div>
   );
 }
 
@@ -218,15 +433,17 @@ function DestinationsPage() {
 
 function DestinationCard({ destination, index }: { destination: Destination; index: number }) {
   return (
-    <Link className={`destination-card destination-card-${index % 3}`} to={`/destinations/${destination.slug}`}>
-      <div className="destination-image">
-        {destination.photoUrl ? <img src={destination.photoUrl} alt={`${destination.name}, Rishikesh`} loading="lazy" /> : <div className="image-empty"><Compass size={25} /><span>PHOTO NOT AVAILABLE</span></div>}
-        <span className="photo-number">{String(index + 1).padStart(2, '0')}</span>
-        <span className="card-open"><ArrowUpRight size={17} /></span>
-      </div>
-      <div className="destination-card-copy"><div><span className="category-label">{destination.category}</span><h2>{destination.name}</h2></div><span className="location-status">{destination.latitude !== null ? <><MapPin size={13} /> PIN VERIFIED</> : 'DETAILS PENDING'}</span></div>
-      {destination.photoSource && <span className="image-source" onClick={(event) => event.preventDefault()}><a href={destination.photoSource} target="_blank" rel="noreferrer" aria-label={`View image source: ${destination.photoSourceName}`}>IMAGE SOURCE · COMMONS</a></span>}
-    </Link>
+    <article className={`destination-card destination-card-${index % 3}`}>
+      <Link className="destination-card-link" to={`/destinations/${destination.slug}`}>
+        <div className="destination-image">
+          {destination.photoUrl ? <img src={destination.photoUrl} alt={`${destination.name}, Rishikesh`} loading="lazy" /> : <div className="image-empty"><Compass size={25} /><span>PHOTO NOT AVAILABLE</span></div>}
+          <span className="photo-number">{String(index + 1).padStart(2, '0')}</span>
+          <span className="card-open"><ArrowUpRight size={17} /></span>
+        </div>
+        <div className="destination-card-copy"><div><span className="category-label">{destination.category}</span><h2>{destination.name}</h2></div><span className="location-status">{destination.latitude !== null ? <><MapPin size={13} /> PIN VERIFIED</> : 'DETAILS PENDING'}</span></div>
+      </Link>
+      {destination.photoSource && <a className="image-source" href={destination.photoSource} target="_blank" rel="noreferrer">IMAGE SOURCE · COMMONS</a>}
+    </article>
   );
 }
 
@@ -239,7 +456,7 @@ function DestinationPage() {
       <Link to="/destinations" className="back-link"><ArrowLeft size={15} /> All places</Link>
       <div className="detail-grid">
         <div className="detail-photo">{place.photoUrl ? <img src={place.photoUrl} alt={`${place.name}, Rishikesh`} /> : <div className="image-empty"><Compass size={27} /><span>PHOTO NOT AVAILABLE</span></div>}{place.photoSource && <a href={place.photoSource} target="_blank" rel="noreferrer" className="photo-credit">IMAGE: {place.photoSourceName?.toUpperCase()} <ArrowUpRight size={12} /></a>}</div>
-        <div className="detail-copy"><p className="eyebrow">{place.category.toUpperCase()} · RISHIKESH</p><h1>{place.name}</h1><p className="detail-description">{place.description ?? 'A verified description is not available yet.'}</p><dl className="detail-facts"><div><dt>LOCATION</dt><dd>{place.latitude !== null && place.longitude !== null ? 'Mapped pin confirmed' : 'Location pin not verified'}</dd></div><div><dt>RATING</dt><dd>{place.rating === null ? 'No verified rating' : `${place.rating} / 5`}</dd></div><div><dt>REVIEWS</dt><dd>{place.reviews === null ? 'No verified reviews' : place.reviews}</dd></div></dl>{place.latitude !== null && <p className="pin-caption"><MapPin size={15} /> Place name verified via OpenStreetMap <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Attribution</a></p>}<Link className="book-place" to={`/?destination=${encodeURIComponent(place.name)}`}>Set as destination <ArrowRight size={16} /></Link></div>
+        <div className="detail-copy"><p className="eyebrow">{place.category.toUpperCase()} · RISHIKESH</p><h1>{place.name}</h1><p className="detail-description">{place.description ?? 'A verified description is not available yet.'}</p><dl className="detail-facts"><div><dt>LOCATION</dt><dd>{place.latitude !== null && place.longitude !== null ? 'Mapped pin confirmed' : 'Location pin not verified'}</dd></div><div><dt>RATING</dt><dd>{place.rating === null ? 'No verified rating' : `${place.rating} / 5`}</dd></div><div><dt>REVIEWS</dt><dd>{place.reviews === null ? 'No verified reviews' : place.reviews}</dd></div></dl>{place.latitude !== null && <p className="pin-caption"><MapPin size={15} /> Place name verified via OpenStreetMap <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Attribution</a></p>}<Link className="book-place" to={`/booking?destination=${encodeURIComponent(place.name)}`}>Set as destination <ArrowRight size={16} /></Link></div>
       </div>
     </div>
   );
@@ -284,4 +501,15 @@ function NotFoundPage() {
 
 function SiteFooter() {
   return <footer className="site-footer"><div className="footer-inner"><Link to="/" className="brand"><span className="brand-icon"><Navigation size={18} /></span><span className="brand-word">Rishi<span>Ride</span></span></Link><span className="footer-note">A LOCAL RIDE THROUGH RISHIKESH</span><div className="footer-links"><Link to="/about">About</Link><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link></div><span className="copyright">© 2026 RishiRide</span></div></footer>;
+}
+
+function MobileNav() {
+  return (
+    <nav className="mobile-bottom-nav" aria-label="Passenger navigation">
+      <NavLink to="/" end><Navigation size={18} /><span>Home</span></NavLink>
+      <NavLink to="/destinations"><Compass size={18} /><span>Places</span></NavLink>
+      <NavLink to="/booking"><span className="mobile-book-icon"><Plus size={19} /></span><span>Book</span></NavLink>
+      <NavLink to="/faqs"><CircleHelp size={18} /><span>Help</span></NavLink>
+    </nav>
+  );
 }
