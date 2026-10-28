@@ -23,8 +23,11 @@ export async function signupUser(
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(body?.message || 'Unable to create your passenger account.');
+    const body = await response.json().catch(() => null) as {
+      error?: { message?: string };
+      message?: string;
+    } | null;
+    throw new Error(body?.error?.message || body?.message || 'Unable to create your passenger account.');
   }
 
   const result = await response.json() as Partial<LoginResponse>;
@@ -37,5 +40,6 @@ export async function signupUser(
     mobile: result.mobile,
     role: 'passenger',
     maskedMobile: result.maskedMobile || `******${result.mobile.slice(-4)}`,
+    ...(result.developmentOtp ? { developmentOtp: result.developmentOtp } : {}),
   };
 }

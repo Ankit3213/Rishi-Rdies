@@ -5,9 +5,11 @@ export type LoginResponse = {
   mobile: string;
   role: UserRole;
   maskedMobile: string;
+  developmentOtp?: string;
 };
 
 type LoginRequest = {
+  email: string;
   mobile: string;
   password: string;
   role: UserRole;
@@ -29,7 +31,11 @@ export async function loginUser(
   });
 
   if (!response.ok) {
-    throw new Error('Unable to login with the supplied details.');
+    const body = await response.json().catch(() => null) as {
+      error?: { message?: string };
+      message?: string;
+    } | null;
+    throw new Error(body?.error?.message || body?.message || 'Unable to login with the supplied details.');
   }
 
   return response.json() as Promise<LoginResponse>;

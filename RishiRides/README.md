@@ -2,6 +2,22 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Passenger account API
+
+The app's authentication API is in `server/` and stores accounts in MongoDB. Configure and run it from `RishiRides/`:
+
+```bash
+cd server
+npm install
+cp .env.example .env
+# Set a private MongoDB URI and a random JWT_SECRET of at least 32 characters in .env.
+npm run dev
+```
+
+Set `EXPO_PUBLIC_API_URL` in the app's local `.env` to the API URL reachable by the device (for example `http://10.0.2.2:4000` for an Android emulator or `http://localhost:4000` for a web browser). Keep the MongoDB URI and JWT secret only in `server/.env`; never put either in an `EXPO_PUBLIC_` variable or commit them.
+
+Signup stores the Gmail/email and mobile number with a **scrypt password hash**, never the plaintext password. Login requires the matching email, mobile number, and password, then verifies a one-time code sent to the registered Indian mobile number. OTP challenges are stored as keyed hashes, expire after five minutes, and are limited to five attempts. Local development uses a temporary OTP simulator and displays its code in the app; production must use Twilio Verify and MongoDB TLS. Use a MongoDB user limited to the application's database, enable encryption at rest and backups in the MongoDB deployment, and use HTTPS for the public API.
+
 ## Get started
 
 1. Install dependencies

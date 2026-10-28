@@ -11,6 +11,14 @@ type OtpRequest = {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
+async function errorMessage(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null) as {
+    error?: { message?: string };
+    message?: string;
+  } | null;
+  return body?.error?.message || body?.message || fallback;
+}
+
 export async function verifyOtp(
   request: OtpRequest
 ): Promise<OtpResponse> {
@@ -25,7 +33,7 @@ export async function verifyOtp(
   });
 
   if (!response.ok) {
-    throw new Error('The OTP is incorrect or has expired.');
+    throw new Error(await errorMessage(response, 'The OTP is incorrect or has expired.'));
   }
 
   return response.json() as Promise<OtpResponse>;
@@ -46,6 +54,6 @@ export async function resendOtp(
   });
 
   if (!response.ok) {
-    throw new Error('Unable to resend the OTP.');
+    throw new Error(await errorMessage(response, 'Unable to resend the OTP.'));
   }
 }

@@ -15,11 +15,12 @@ import { resendOtp, verifyOtp } from '../api/otp';
 
 export default function OtpScreen() {
   const router = useRouter();
-  const { mobile, role, sessionId, flow } = useLocalSearchParams<{
+  const { mobile, role, sessionId, flow, developmentOtp } = useLocalSearchParams<{
     mobile?: string;
     role?: UserRole;
     sessionId?: string;
     flow?: string;
+    developmentOtp?: string;
   }>();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -106,6 +107,10 @@ export default function OtpScreen() {
         Enter the 6-digit code sent to{' '}
         <Text style={styles.mobile}>{mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}</Text>.
       </Text>
+
+      {developmentOtp && (
+        <Text style={styles.description}>Development test code: <Text style={styles.mobile}>{developmentOtp}</Text></Text>
+      )}
 
       <Text style={styles.label}>VERIFICATION CODE</Text>
       <TextInput

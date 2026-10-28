@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { flow } = useLocalSearchParams<{ flow?: string }>();
   const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -41,10 +42,16 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     const cleanMobile = mobile.replace(/\D/g, '');
+    const cleanEmail = email.trim().toLowerCase();
     setNotice('');
 
     if (cleanMobile.length !== 10) {
       setNotice('Enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setNotice('Enter the Gmail address linked to your account.');
       return;
     }
 
@@ -56,6 +63,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const response = await loginUser({
+        email: cleanEmail,
         mobile: cleanMobile,
         password,
         role: 'passenger',
@@ -77,6 +85,7 @@ export default function LoginScreen() {
           mobile: response.mobile,
           role: response.role,
           sessionId: response.sessionId,
+          ...(response.developmentOtp ? { developmentOtp: response.developmentOtp } : {}),
           flow: flow === 'booking' ? 'booking' : 'login',
         },
       });
@@ -106,6 +115,25 @@ export default function LoginScreen() {
           <Text style={styles.title}>Passenger Login</Text>
           <Text style={styles.subtitle}>Enter your details to continue</Text>
         </View>
+      </View>
+
+      <Text style={styles.label}>GMAIL ADDRESS</Text>
+      <View style={styles.inputContainer}>
+        <MaterialCommunityIcons name="email-outline" size={19} color="#68818A" />
+        <TextInput
+          accessibilityLabel="Gmail address"
+          style={styles.input}
+          placeholder="Enter your Gmail address"
+          placeholderTextColor="#9AAAB0"
+          value={email}
+          onChangeText={(value) => {
+            setEmail(value);
+            setNotice('');
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+        />
       </View>
 
       <Text style={styles.label}>MOBILE NUMBER</Text>
