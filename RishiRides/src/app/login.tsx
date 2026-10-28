@@ -1,67 +1,75 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AuthLayout from '../components/auth-layout';
 import { loginUser } from '../api/login';
 
-type UserRole = 'passenger' | 'driver';
+const rememberedMobileKey = 'rememberedMobile';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-
-  const [role, setRole] = useState<UserRole>('passenger');
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(rememberedMobileKey)
+      .then((savedMobile) => {
+        if (active && savedMobile) setMobile(savedMobile);
+      })
+      .catch(() => {
+        if (active) setNotice('Could not load your saved mobile number.');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleLogin = async () => {
     const cleanMobile = mobile.replace(/\D/g, '');
-
-    if (!cleanMobile) {
-      Alert.alert(
-        'Missing Mobile Number',
-        'Please enter your mobile number.'
-      );
-      return;
-    }
+    setNotice('');
 
     if (cleanMobile.length !== 10) {
-      Alert.alert(
-        'Invalid Mobile Number',
-        'Please enter a valid 10-digit mobile number.'
-      );
+      setNotice('Enter a valid 10-digit mobile number.');
       return;
     }
 
     if (!password.trim()) {
-      Alert.alert(
-        'Missing Password',
-        'Please enter your password.'
-      );
+      setNotice('Enter your password to continue.');
       return;
     }
 
     try {
       setLoading(true);
-
       const response = await loginUser({
         mobile: cleanMobile,
         password,
-        role,
+        role: 'passenger',
       });
+
+      try {
+        if (rememberMe) {
+          await AsyncStorage.setItem(rememberedMobileKey, cleanMobile);
+        } else {
+          await AsyncStorage.removeItem(rememberedMobileKey);
+        }
+      } catch {
+        setNotice('Verification is ready, but your remember-me preference could not be saved.');
+      }
 
       router.push({
         pathname: '/otp',
@@ -69,522 +77,317 @@ export default function LoginScreen() {
           mobile: response.mobile,
           role: response.role,
           sessionId: response.sessionId,
+          flow: flow === 'booking' ? 'booking' : 'login',
         },
       });
     } catch (error) {
-      Alert.alert(
-        'Login Error',
-        error instanceof Error
-          ? error.message
-          : 'Something went wrong. Please try again.'
-      );
+      setNotice(error instanceof Error ? error.message : 'Unable to sign in. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: Math.max(insets.top, 20),
-            paddingBottom: Math.max(insets.bottom, 30),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <AuthLayout mode="login">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={styles.backButton}
+        onPress={() => router.back()}
       >
-        {/* BACK BUTTON */}
+        <MaterialCommunityIcons name="arrow-left" size={19} color="#45636B" />
+      </Pressable>
+
+      <View style={styles.heading}>
+        <View style={styles.headingIcon}>
+          <MaterialCommunityIcons name="account" size={22} color="#FFFFFF" />
+        </View>
+        <View style={styles.headingCopy}>
+          <Text style={styles.title}>Passenger Login</Text>
+          <Text style={styles.subtitle}>Enter your details to continue</Text>
+        </View>
+      </View>
+
+      <Text style={styles.label}>MOBILE NUMBER</Text>
+      <View style={styles.inputContainer}>
+        <MaterialCommunityIcons name="cellphone" size={19} color="#68818A" />
+        <TextInput
+          accessibilityLabel="Mobile number"
+          style={styles.input}
+          placeholder="Enter your mobile number"
+          placeholderTextColor="#9AAAB0"
+          value={mobile}
+          onChangeText={(text) => {
+            setMobile(text.replace(/\D/g, '').slice(0, 10));
+            setNotice('');
+          }}
+          keyboardType="phone-pad"
+          maxLength={10}
+          autoComplete="tel"
+        />
+      </View>
+
+      <Text style={styles.label}>PASSWORD</Text>
+      <View style={styles.inputContainer}>
+        <MaterialCommunityIcons name="lock-outline" size={19} color="#68818A" />
+        <TextInput
+          accessibilityLabel="Password"
+          style={styles.input}
+          placeholder="Enter your password"
+          placeholderTextColor="#9AAAB0"
+          value={password}
+          onChangeText={(value) => {
+            setPassword(value);
+            setNotice('');
+          }}
+          secureTextEntry={!showPassword}
+          autoComplete="current-password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
+        />
         <Pressable
-          style={styles.backButton}
-          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+          onPress={() => setShowPassword((visible) => !visible)}
+          hitSlop={10}
         >
           <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color="#0f172a"
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            size={19}
+            color="#68818A"
           />
         </Pressable>
+      </View>
 
-        {/* LOGO */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoCircle}>
-            <MaterialCommunityIcons
-              name="rickshaw"
-              size={34}
-              color="#ffffff"
-            />
-          </View>
-
-          <Text style={styles.logoText}>RISHI</Text>
-          <Text style={styles.logoTextGreen}>RIDES</Text>
-        </View>
-
-        {/* TITLE */}
-        <Text style={styles.title}>
-          Welcome Back
-        </Text>
-
-        <Text style={styles.subtitle}>
-          Login to continue with RishiRides
-        </Text>
-
-        {/* ROLE */}
-        <Text style={styles.label}>
-          LOGIN AS
-        </Text>
-
-        <View style={styles.roleContainer}>
-          {/* PASSENGER */}
-          <Pressable
-            style={[
-              styles.roleButton,
-              role === 'passenger' &&
-                styles.roleButtonActive,
-            ]}
-            onPress={() => setRole('passenger')}
-          >
-            <View
-              style={[
-                styles.roleIcon,
-                role === 'passenger' &&
-                  styles.roleIconActive,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="account"
-                size={24}
-                color={
-                  role === 'passenger'
-                    ? '#ffffff'
-                    : '#64748b'
-                }
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.roleText,
-                role === 'passenger' &&
-                  styles.roleTextActive,
-              ]}
-            >
-              Passenger
-            </Text>
-
-            {role === 'passenger' && (
-              <MaterialCommunityIcons
-                name="check-circle"
-                size={21}
-                color="#16a34a"
-              />
-            )}
-          </Pressable>
-
-          {/* DRIVER */}
-          <Pressable
-            style={[
-              styles.roleButton,
-              role === 'driver' &&
-                styles.roleButtonActive,
-            ]}
-            onPress={() => setRole('driver')}
-          >
-            <View
-              style={[
-                styles.roleIcon,
-                role === 'driver' &&
-                  styles.roleIconActive,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="steering"
-                size={24}
-                color={
-                  role === 'driver'
-                    ? '#ffffff'
-                    : '#64748b'
-                }
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.roleText,
-                role === 'driver' &&
-                  styles.roleTextActive,
-              ]}
-            >
-              Driver
-            </Text>
-
-            {role === 'driver' && (
-              <MaterialCommunityIcons
-                name="check-circle"
-                size={21}
-                color="#16a34a"
-              />
-            )}
-          </Pressable>
-        </View>
-
-        {/* MOBILE NUMBER */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            MOBILE NUMBER
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons
-              name="phone"
-              size={21}
-              color="#64748b"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter 10-digit mobile number"
-              placeholderTextColor="#94a3b8"
-              value={mobile}
-              onChangeText={(text) => {
-                const cleaned = text
-                  .replace(/\D/g, '')
-                  .slice(0, 10);
-
-                setMobile(cleaned);
-              }}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-        </View>
-
-        {/* PASSWORD */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            PASSWORD
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons
-              name="lock-outline"
-              size={21}
-              color="#64748b"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#94a3b8"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-
-            <Pressable
-              onPress={() =>
-                setShowPassword((previous) => !previous)
-              }
-              hitSlop={10}
-            >
-              <MaterialCommunityIcons
-                name={
-                  showPassword
-                    ? 'eye-off'
-                    : 'eye'
-                }
-                size={21}
-                color="#64748b"
-              />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* FORGOT PASSWORD */}
+      <View style={styles.optionsRow}>
         <Pressable
-          style={styles.forgotButton}
-          onPress={() =>
-            Alert.alert(
-              'Forgot Password',
-              'Password recovery will be connected later.'
-            )
-          }
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: rememberMe }}
+          style={styles.rememberButton}
+          onPress={() => setRememberMe((checked) => !checked)}
         >
-          <Text style={styles.forgotText}>
-            Forgot Password?
-          </Text>
-        </Pressable>
-
-        {/* LOGIN BUTTON */}
-        <Pressable
-          style={[
-            styles.loginButton,
-            loading &&
-              styles.loginButtonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <Text style={styles.loginButtonText}>
-            {loading
-              ? 'LOGGING IN...'
-              : role === 'passenger'
-                ? 'LOGIN AS PASSENGER'
-                : 'LOGIN AS DRIVER'}
-          </Text>
-
-          {!loading && (
-            <MaterialCommunityIcons
-              name="arrow-right"
-              size={22}
-              color="#ffffff"
-            />
-          )}
-        </Pressable>
-
-        {/* SIGN UP */}
-        <View style={styles.signupContainer}>
-          <Text style={styles.signupText}>
-            Don't have an account?
-          </Text>
-
-          <Pressable
-            onPress={() => router.push('/signup')}
-          >
-            <Text style={styles.signupLink}>
-              {' '}Sign Up
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* SECURITY */}
-        <View style={styles.infoBox}>
           <MaterialCommunityIcons
-            name="shield-check"
-            size={22}
-            color="#16a34a"
+            name={rememberMe ? 'checkbox-marked-outline' : 'checkbox-blank-outline'}
+            size={18}
+            color={rememberMe ? '#078653' : '#82949A'}
           />
+          <Text style={styles.rememberText}>Remember me</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setNotice('Password recovery is not available yet. Please contact RishiRide support.')}
+        >
+          <Text style={styles.forgotText}>Forgot password?</Text>
+        </Pressable>
+      </View>
 
-          <Text style={styles.infoText}>
-            Your information is secure with RishiRides.
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {!!notice && <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text>}
+
+      <Pressable
+        accessibilityRole="button"
+        style={[styles.submitButton, loading && styles.submitDisabled]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text style={styles.submitText}>{loading ? 'SIGNING IN…' : 'Login'}</Text>
+        {!loading && <MaterialCommunityIcons name="arrow-right" size={19} color="#FFFFFF" />}
+      </Pressable>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.switchText}>Don&apos;t have an account?</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({
+            pathname: '/signup',
+            params: flow === 'booking' ? { role: 'passenger', flow: 'booking' } : { role: 'passenger' },
+          })}
+        >
+          <Text style={styles.switchLink}>Sign up</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>OR</Text>
+        <View style={styles.divider} />
+      </View>
+      <View style={styles.googleButton}>
+        <MaterialCommunityIcons name="google" size={17} color="#4285F4" />
+        <Text style={styles.googleText}>Google sign-in is not connected</Text>
+      </View>
+      <View style={styles.securityRow}>
+        <MaterialCommunityIcons name="shield-check-outline" size={16} color="#078653" />
+        <Text style={styles.securityText}>Your information stays secure</Text>
+      </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-
-  scrollContent: {
-    paddingHorizontal: 22,
-  },
-
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 25,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    backgroundColor: '#F3F8F5',
+    marginBottom: 10,
   },
-
-  logoContainer: {
+  heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 25,
+    gap: 11,
+    marginBottom: 23,
   },
-
-  logoCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#16a34a',
-    justifyContent: 'center',
+  headingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
-    marginRight: 10,
-  },
-
-  logoText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#0f172a',
-    letterSpacing: 1,
-  },
-
-  logoTextGreen: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#16a34a',
-    letterSpacing: 1,
-  },
-
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#0f172a',
-    textAlign: 'center',
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 7,
-    marginBottom: 30,
-  },
-
-  label: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#475569',
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-
-  roleContainer: {
-    gap: 10,
-    marginBottom: 25,
-  },
-
-  roleButton: {
-    minHeight: 68,
-    borderRadius: 15,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  roleButtonActive: {
-    borderColor: '#16a34a',
-    backgroundColor: '#f0fdf4',
-  },
-
-  roleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    backgroundColor: '#078653',
   },
-
-  roleIconActive: {
-    backgroundColor: '#16a34a',
-  },
-
-  roleText: {
+  headingCopy: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#475569',
   },
-
-  roleTextActive: {
-    color: '#15803d',
+  title: {
+    color: '#18313A',
+    fontSize: 20,
+    fontWeight: '900',
   },
-
-  inputGroup: {
-    marginBottom: 18,
+  subtitle: {
+    color: '#71838A',
+    fontSize: 11,
+    marginTop: 3,
   },
-
+  label: {
+    color: '#415961',
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 7,
+    marginTop: 11,
+  },
   inputContainer: {
-    height: 56,
-    backgroundColor: '#ffffff',
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    minHeight: 47,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    gap: 9,
+    paddingHorizontal: 12,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#DCE6E8',
+    backgroundColor: '#FFFFFF',
   },
-
   input: {
     flex: 1,
-    fontSize: 15,
-    color: '#0f172a',
-    marginLeft: 10,
+    minWidth: 0,
+    minHeight: 44,
+    paddingVertical: 8,
+    color: '#20383F',
+    fontSize: 12,
   },
-
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 25,
+  optionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 13,
+    marginBottom: 14,
   },
-
+  rememberButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rememberText: {
+    color: '#61777D',
+    fontSize: 10,
+  },
   forgotText: {
-    color: '#16a34a',
-    fontSize: 13,
+    color: '#087C50',
+    fontSize: 10,
     fontWeight: '700',
   },
-
-  loginButton: {
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#16a34a',
+  notice: {
+    color: '#A43D32',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  submitButton: {
+    minHeight: 47,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    gap: 10,
+    gap: 8,
+    borderRadius: 9,
+    backgroundColor: '#078653',
   },
-
-  loginButtonDisabled: {
+  submitDisabled: {
     opacity: 0.6,
   },
-
-  loginButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  submitText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.5,
   },
-
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 25,
-  },
-
-  signupText: {
-    color: '#64748b',
-    fontSize: 14,
-  },
-
-  signupLink: {
-    color: '#16a34a',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
-  infoBox: {
+  switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 30,
-    paddingHorizontal: 15,
+    gap: 5,
+    marginTop: 15,
   },
-
-  infoText: {
-    color: '#64748b',
-    fontSize: 11,
-    marginLeft: 7,
+  switchText: {
+    color: '#71838A',
+    fontSize: 10,
+  },
+  switchLink: {
+    color: '#087C50',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 17,
+    marginBottom: 12,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E4EBE8',
+  },
+  dividerText: {
+    color: '#97A5A4',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  googleButton: {
+    minHeight: 41,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#DCE6E8',
+    backgroundColor: '#FFFFFF',
+  },
+  googleText: {
+    color: '#71838A',
+    fontSize: 10,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 15,
+  },
+  securityText: {
+    color: '#71838A',
+    fontSize: 9,
   },
 });

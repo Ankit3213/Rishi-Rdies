@@ -3,192 +3,304 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AuthLayout from '../components/auth-layout';
 import type { UserRole } from '../api/login';
 import { resendOtp, verifyOtp } from '../api/otp';
 
 export default function OtpScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { mobile, role, sessionId } = useLocalSearchParams<{
-    mobile: string;
-    role: UserRole;
-    sessionId: string;
+  const { mobile, role, sessionId, flow } = useLocalSearchParams<{
+    mobile?: string;
+    role?: UserRole;
+    sessionId?: string;
+    flow?: string;
   }>();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState('');
 
   const handleVerify = async () => {
+    setNotice('');
+    if (!sessionId || !mobile || !role) {
+      setNotice('This verification link is incomplete. Go back and start again.');
+      return;
+    }
     if (otp.length !== 6) {
-      Alert.alert('Invalid OTP', 'Please enter the 6-digit OTP.');
+      setNotice('Enter the complete 6-digit verification code.');
       return;
     }
 
     try {
       setLoading(true);
-      const result = await verifyOtp({
-        sessionId: sessionId ?? '',
-        mobile: mobile ?? '',
-        otp,
-      });
-
-      if (!result.verified || !role) {
-        throw new Error('OTP verification failed.');
+      const result = await verifyOtp({ sessionId, mobile, otp });
+      if (!result.verified) {
+        throw new Error('That code could not be verified. Check it and try again.');
       }
 
-      await AsyncStorage.multiSet([
+      const values: [string, string][] = [
         ['isLoggedIn', 'true'],
         ['userRole', role],
-        ['userMobile', mobile ?? ''],
-        ...(result.token
-          ? ([['authToken', result.token]] as [string, string][])
-          : []),
-      ]);
+        ['userMobile', mobile],
+      ];
+      if (result.token) values.push(['authToken', result.token]);
+      await AsyncStorage.multiSet(values);
       router.replace(
         role === 'driver'
           ? '/dashboards/Drivers/driver-dashboard'
           : '/dashboards/passenger/passenger-dashboard'
       );
     } catch (error) {
-      Alert.alert(
-        'Verification failed',
-        error instanceof Error ? error.message : 'Please try again.'
-      );
+      setNotice(error instanceof Error ? error.message : 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
+    if (!sessionId || !mobile) {
+      setNotice('This verification session is incomplete. Go back and start again.');
+      return;
+    }
+    setNotice('');
     try {
-      await resendOtp(sessionId ?? '', mobile ?? '');
-      Alert.alert('OTP sent', 'A new OTP has been sent to your mobile number.');
+      setResending(true);
+      await resendOtp(sessionId, mobile);
+      setNotice('A new verification code has been sent.');
+      setOtp('');
     } catch (error) {
-      Alert.alert(
-        'Unable to resend',
-        error instanceof Error ? error.message : 'Please try again.'
-      );
+      setNotice(error instanceof Error ? error.message : 'Unable to resend the code. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View
-        style={[
-          styles.content,
-          { paddingTop: Math.max(insets.top, 20) },
-        ]}
+    <AuthLayout mode="otp">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={styles.backButton}
+        onPress={() => router.back()}
       >
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#0f172a" />
-        </Pressable>
+        <MaterialCommunityIcons name="arrow-left" size={19} color="#45636B" />
+      </Pressable>
 
-        <View style={styles.logoCircle}>
-          <MaterialCommunityIcons name="shield-check" size={34} color="#fff" />
+      <View style={styles.heading}>
+        <View style={styles.headingIcon}>
+          <MaterialCommunityIcons name="shield-check" size={23} color="#FFFFFF" />
         </View>
-        <Text style={styles.title}>Verify your number</Text>
-        <Text style={styles.subtitle}>
-          Enter the 6-digit OTP sent to {mobile ? `******${mobile.slice(-4)}` : 'your mobile'}.
-        </Text>
-
-        <Text style={styles.label}>OTP</Text>
-        <TextInput
-          style={styles.otpInput}
-          value={otp}
-          onChangeText={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
-          keyboardType="number-pad"
-          maxLength={6}
-          placeholder="000000"
-          placeholderTextColor="#94a3b8"
-          textContentType="oneTimeCode"
-          autoFocus
-        />
-
-        <Pressable
-          style={[styles.verifyButton, loading && styles.disabledButton]}
-          onPress={handleVerify}
-          disabled={loading}
-        >
-          <Text style={styles.verifyText}>
-            {loading ? 'VERIFYING...' : 'VERIFY OTP'}
-          </Text>
-          {!loading && (
-            <MaterialCommunityIcons name="arrow-right" size={22} color="#fff" />
-          )}
-        </Pressable>
-
-        <Pressable onPress={handleResend}>
-          <Text style={styles.resendText}>Resend OTP</Text>
-        </Pressable>
-
+        <View style={styles.headingCopy}>
+          <Text style={styles.title}>Verify your number</Text>
+          <Text style={styles.subtitle}>One last step to secure your account</Text>
+        </View>
       </View>
-    </KeyboardAvoidingView>
+
+      <Text style={styles.description}>
+        Enter the 6-digit code sent to{' '}
+        <Text style={styles.mobile}>{mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}</Text>.
+      </Text>
+
+      <Text style={styles.label}>VERIFICATION CODE</Text>
+      <TextInput
+        accessibilityLabel="6-digit verification code"
+        style={styles.otpInput}
+        value={otp}
+        onChangeText={(value) => {
+          setOtp(value.replace(/\D/g, '').slice(0, 6));
+          setNotice('');
+        }}
+        keyboardType="number-pad"
+        maxLength={6}
+        placeholder="• • • • • •"
+        placeholderTextColor="#A6B6B7"
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={handleVerify}
+      />
+
+      {!!notice && (
+        <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text>
+      )}
+
+      <Pressable
+        accessibilityRole="button"
+        style={[styles.submitButton, (loading || otp.length !== 6) && styles.submitDisabled]}
+        onPress={handleVerify}
+        disabled={loading || otp.length !== 6}
+      >
+        <Text style={styles.submitText}>{loading ? 'VERIFYING…' : 'Verify'}</Text>
+        {!loading && <MaterialCommunityIcons name="arrow-right" size={19} color="#FFFFFF" />}
+      </Pressable>
+
+      <View style={styles.resendRow}>
+        <Text style={styles.resendHint}>Didn&apos;t receive a code?</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleResend}
+          disabled={resending}
+        >
+          <Text style={[styles.resendText, resending && styles.resendDisabled]}>
+            {resending ? 'Sending…' : 'Resend code'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        style={styles.changeNumber}
+        onPress={() => router.back()}
+      >
+        <Text style={styles.changeNumberText}>Change mobile number</Text>
+      </Pressable>
+
+      {flow?.includes('signup') && (
+        <View style={styles.securityRow}>
+          <MaterialCommunityIcons name="account-check-outline" size={16} color="#078653" />
+          <Text style={styles.securityText}>Your passenger account will be verified securely</Text>
+        </View>
+      )}
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { flex: 1, paddingHorizontal: 22 },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 70,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  logoCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#16a34a',
     justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 25,
+    backgroundColor: '#F3F8F5',
+    marginBottom: 10,
   },
-  title: { fontSize: 29, fontWeight: '900', color: '#0f172a', textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 9, marginBottom: 38 },
-  label: { fontSize: 11, fontWeight: '800', color: '#475569', letterSpacing: 0.8, marginBottom: 8 },
-  otpInput: {
-    height: 64,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: '#16a34a',
-    backgroundColor: '#fff',
-    color: '#0f172a',
-    fontSize: 26,
+  heading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 18,
+  },
+  headingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#078653',
+  },
+  headingCopy: {
+    flex: 1,
+  },
+  title: {
+    color: '#18313A',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  subtitle: {
+    color: '#71838A',
+    fontSize: 11,
+    marginTop: 3,
+  },
+  description: {
+    color: '#62777D',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  mobile: {
+    color: '#263F46',
     fontWeight: '800',
-    letterSpacing: 10,
-    textAlign: 'center',
-    paddingLeft: 10,
   },
-  verifyButton: {
-    height: 58,
-    borderRadius: 14,
-    backgroundColor: '#16a34a',
+  label: {
+    color: '#415961',
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  otpInput: {
+    height: 59,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DCE6E8',
+    backgroundColor: '#FFFFFF',
+    color: '#18313A',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 12,
+    textAlign: 'center',
+    paddingLeft: 12,
+  },
+  notice: {
+    color: '#A43D32',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 10,
+  },
+  submitButton: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    marginTop: 25,
+    gap: 8,
+    borderRadius: 9,
+    backgroundColor: '#078653',
+    marginTop: 17,
   },
-  disabledButton: { opacity: 0.65 },
-  verifyText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-  resendText: { color: '#15803d', fontSize: 14, fontWeight: '800', textAlign: 'center', marginTop: 25 },
+  submitDisabled: {
+    opacity: 0.6,
+  },
+  submitText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  resendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 18,
+  },
+  resendHint: {
+    color: '#71838A',
+    fontSize: 10,
+  },
+  resendText: {
+    color: '#087C50',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  resendDisabled: {
+    opacity: 0.55,
+  },
+  changeNumber: {
+    alignSelf: 'center',
+    padding: 9,
+    marginTop: 3,
+  },
+  changeNumberText: {
+    color: '#62777D',
+    fontSize: 10,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 13,
+  },
+  securityText: {
+    color: '#71838A',
+    fontSize: 9,
+  },
 });

@@ -1,12 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -16,1270 +17,1379 @@ export default function LandingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-
+  const [pickup, setPickup] = useState('');
+  const [destination, setDestination] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const desktop = width >= 850;
+
+  const handleBookRide = () => {
+    router.push({
+      pathname: '/login',
+      params: { role: 'passenger', flow: 'booking' },
+    });
+  };
+
+  const navigateTo = (path: '/landing' | '/about' | '/features' | '/how-it-works' | '/contact') => {
+    setMenuOpen(false);
+    router.push(path);
+  };
 
   return (
     <View style={styles.container}>
-      {/* ================= BACKGROUND ================= */}
-
-      <LinearGradient
-        colors={[
-          '#041814',
-          '#06251F',
-          '#07382E',
-          '#06261F',
-          '#031511',
-        ]}
-        locations={[0, 0.25, 0.52, 0.78, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Soft background glow */}
-      <View style={styles.glowTop} />
-      <View style={styles.glowLeft} />
-      <View style={styles.glowRight} />
-
-      {/* Decorative circles */}
-      <View style={styles.circleOne} />
-      <View style={styles.circleTwo} />
-      <View style={styles.circleThree} />
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: Math.max(insets.top, 15),
-          paddingBottom: 50,
+          paddingTop: Math.max(insets.top, 8),
+          paddingBottom: Math.max(insets.bottom, 24),
         }}
       >
-        {/* ================= HEADER ================= */}
-
-        <View
-          style={[
-            styles.header,
-            desktop && styles.headerDesktop,
-          ]}
-        >
-          {/* LOGO */}
-
+        <View style={[styles.header, styles.contentWidth]}>
           <Pressable
-            style={styles.logoContainer}
-            onPress={() => router.replace('/landing')}
+            accessibilityRole="button"
+            accessibilityLabel="RishiRide home"
+            style={styles.brand}
+            onPress={() => navigateTo('/landing')}
           >
-            <View style={styles.logoOuter}>
-              <LinearGradient
-                colors={['#B9FFE5', '#58D9B0']}
-                style={styles.logoCircle}
-              >
-                <MaterialCommunityIcons
-                  name="rickshaw"
-                  size={27}
-                  color="#07362C"
-                />
-              </LinearGradient>
+            <View style={styles.brandIcon}>
+              <MaterialCommunityIcons name="rickshaw" size={27} color="#087C50" />
             </View>
-
             <View>
-              <Text style={styles.logoRishi}>RISHI</Text>
-              <Text style={styles.logoRides}>RIDES</Text>
+              <Text style={styles.brandName}>
+                Rishi<Text style={styles.brandAccent}>Ride</Text>
+              </Text>
+              <Text style={styles.brandTagline}>Ride Local. Go Far.</Text>
             </View>
           </Pressable>
 
-          {/* DESKTOP NAV */}
-
           {desktop && (
-            <View style={styles.nav}>
-              <Text style={styles.navActive}>HOME</Text>
-              <Text style={styles.navText}>ABOUT</Text>
-              <Text style={styles.navText}>SERVICES</Text>
-              <Text style={styles.navText}>CONTACT</Text>
+            <View style={styles.navigation}>
+              <NavButton label="Home" active onPress={() => navigateTo('/landing')} />
+              <NavButton label="About" onPress={() => navigateTo('/about')} />
+              <NavButton label="Features" onPress={() => navigateTo('/features')} />
+              <NavButton label="How It Works" onPress={() => navigateTo('/how-it-works')} />
+              <NavButton label="Contact" onPress={() => navigateTo('/contact')} />
             </View>
           )}
 
-          {/* BUTTONS */}
-
-          <View style={styles.headerButtons}>
+          {desktop ? (
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.loginButton}
+                onPress={() => router.push('/login')}
+              >
+                <Text style={styles.loginButtonText}>Login</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.signupButton}
+                onPress={() => router.push('/signup')}
+              >
+                <Text style={styles.signupButtonText}>Sign Up</Text>
+              </Pressable>
+            </View>
+          ) : (
             <Pressable
-              style={styles.loginButton}
-              onPress={() => router.push('/login')}
+              accessibilityRole="button"
+              accessibilityLabel={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              accessibilityState={{ expanded: menuOpen }}
+              style={styles.mobileMenuButton}
+              onPress={() => setMenuOpen((open) => !open)}
             >
-              <Text style={styles.loginText}>LOGIN</Text>
+              <MaterialCommunityIcons
+                name={menuOpen ? 'close' : 'menu'}
+                size={24}
+                color="#17313A"
+              />
             </Pressable>
-
-            <Pressable
-              style={styles.signupButton}
-              onPress={() => router.push('/signup')}
-            >
-              <Text style={styles.signupText}>SIGN UP</Text>
-            </Pressable>
-          </View>
+          )}
         </View>
 
-        {/* ================= HERO ================= */}
+        {!desktop && menuOpen && (
+          <View style={[styles.mobileMenu, styles.contentWidth]}>
+            <NavButton label="Home" active onPress={() => navigateTo('/landing')} />
+            <NavButton label="About" onPress={() => navigateTo('/about')} />
+            <NavButton label="Features" onPress={() => navigateTo('/features')} />
+            <NavButton label="How It Works" onPress={() => navigateTo('/how-it-works')} />
+            <NavButton label="Contact" onPress={() => navigateTo('/contact')} />
+            <View style={styles.mobileMenuActions}>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.loginButton}
+                onPress={() => router.push('/login')}
+              >
+                <Text style={styles.loginButtonText}>Login</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.signupButton}
+                onPress={() => router.push('/signup')}
+              >
+                <Text style={styles.signupButtonText}>Sign Up</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.heroSection}>
+          <View style={[styles.hero, styles.contentWidth, desktop && styles.heroDesktop]}>
+            <View style={[styles.heroCopy, desktop && styles.heroCopyDesktop]}>
+              <View style={styles.promisePill}>
+                <MaterialCommunityIcons name="map-marker" size={15} color="#078653" />
+                <Text style={styles.promiseText}>Fast</Text>
+                <Text style={styles.promiseSeparator}>·</Text>
+                <Text style={styles.promiseText}>Safe</Text>
+                <Text style={styles.promiseSeparator}>·</Text>
+                <Text style={styles.promiseText}>Affordable</Text>
+              </View>
+
+              <Text style={[styles.heroTitle, !desktop && styles.heroTitleMobile]}>
+                Book a Rickshaw{'\n'}in <Text style={styles.heroTitleAccent}>Seconds</Text>
+              </Text>
+              <Text style={styles.heroDescription}>
+                RishiRide connects you with nearby rickshaw drivers for a safe, comfortable and affordable ride.
+                Whether it&apos;s a short trip or a long journey, we&apos;ve got you covered.
+              </Text>
+
+              <View style={[styles.bookingCard, !desktop && styles.bookingCardMobile]}>
+                <View style={styles.locationField}>
+                  <MaterialCommunityIcons name="map-marker" size={21} color="#078653" />
+                  <View style={styles.locationInputWrap}>
+                    <Text style={styles.locationLabel}>From</Text>
+                    <TextInput
+                      accessibilityLabel="Pickup location"
+                      value={pickup}
+                      onChangeText={setPickup}
+                      placeholder="Your location"
+                      placeholderTextColor="#93A2A0"
+                      returnKeyType="next"
+                      style={styles.locationInput}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.fieldDivider} />
+
+                <View style={styles.locationField}>
+                  <MaterialCommunityIcons name="map-marker" size={21} color="#078653" />
+                  <View style={styles.locationInputWrap}>
+                    <Text style={styles.locationLabel}>To</Text>
+                    <TextInput
+                      accessibilityLabel="Destination"
+                      value={destination}
+                      onChangeText={setDestination}
+                      placeholder="Destination"
+                      placeholderTextColor="#93A2A0"
+                      returnKeyType="done"
+                      onSubmitEditing={handleBookRide}
+                      style={styles.locationInput}
+                    />
+                  </View>
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  style={[styles.bookButton, !desktop && styles.bookButtonMobile]}
+                  onPress={handleBookRide}
+                >
+                  <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+                  <Text style={styles.bookButtonText}>Book Ride</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.trustRow}>
+                <TrustItem icon="shield-check" label="Verified Drivers" />
+                <View style={styles.trustDivider} />
+                <TrustItem icon="clock-fast" label="Quick Booking" />
+                <View style={styles.trustDivider} />
+                <TrustItem icon="cash" label="Affordable Fares" />
+              </View>
+            </View>
+
+            <View style={[styles.heroArt, !desktop && styles.heroArtMobile]}>
+              <LinearGradient
+                colors={['#DCEFFC', '#EAF8F0', '#F6F5E9']}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.sun} />
+              <View style={styles.cityline}>
+                <View style={[styles.building, styles.buildingOne]} />
+                <View style={[styles.building, styles.buildingTwo]} />
+                <View style={[styles.building, styles.buildingThree]} />
+                <View style={[styles.building, styles.buildingFour]} />
+                <View style={[styles.building, styles.buildingFive]} />
+              </View>
+              <View style={styles.hillsBack} />
+              <View style={styles.hillsFront} />
+              <View style={styles.road} />
+              <View style={styles.roadStripe} />
+              <View style={styles.rickshawGlow} />
+              <MaterialCommunityIcons
+                name="rickshaw"
+                size={desktop ? 250 : Math.min(width * 0.63, 250)}
+                color="#087C50"
+                style={styles.heroRickshaw}
+              />
+              <View style={styles.artLabel}>
+                <Text style={styles.artLabelText}>Your Ride</Text>
+                <Text style={styles.artLabelText}>Our Priority</Text>
+                <View style={styles.artLabelUnderline} />
+              </View>
+              <View style={styles.artBadge}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.artBadgeText}>READY FOR YOUR NEXT RIDE</Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
         <View
-          style={[
-            styles.hero,
-            desktop && styles.heroDesktop,
-          ]}
+          style={[styles.aboutSection, styles.sectionInner]}
         >
-          {/* ================= LEFT ================= */}
+          <View style={[styles.aboutCopy, desktop && styles.aboutCopyDesktop]}>
+            <Text style={styles.eyebrow}>WHY CHOOSE RISHIRIDE?</Text>
+            <Text style={styles.sectionTitle}>Smart Rides, Better Journeys</Text>
+            <Text style={styles.sectionDescription}>
+              We make your travel simple, safe and stress-free with our easy-to-use platform and reliable rickshaw services.
+            </Text>
 
-          <View
-            style={[
-              styles.heroLeft,
-              desktop && styles.heroLeftDesktop,
-            ]}
-          >
-            {/* LOCATION */}
-
-            <View style={styles.locationBadge}>
-              <View style={styles.locationDot} />
-
-              <MaterialCommunityIcons
-                name="map-marker"
-                size={15}
-                color="#72E4BF"
+            <View
+              style={[styles.featuresGrid, desktop && styles.featuresGridDesktop]}
+            >
+              <Feature
+                icon="lightning-bolt"
+                title="Quick Booking"
+                description="Get a ride in just a few taps."
+                desktop={desktop}
               />
-
-              <Text style={styles.locationText}>
-                RISHIKESH • UTTARAKHAND
-              </Text>
-            </View>
-
-            {/* TITLE */}
-
-            <Text style={styles.heroTitle}>
-              YOUR RIDE.
-            </Text>
-
-            <Text style={styles.heroHighlight}>
-              YOUR JOURNEY.
-            </Text>
-
-            <Text style={styles.heroDescription}>
-              Move through Rishikesh with a ride experience
-              designed to feel safe, simple and peaceful.
-            </Text>
-
-            {/* CTA CARDS */}
-
-            <View style={styles.roleButtons}>
-              {/* PASSENGER */}
-
-              <Pressable
-                style={styles.passengerButton}
-                onPress={() => router.push('/login')}
-              >
-                <LinearGradient
-                  colors={['#B9FFE5', '#65DDB8']}
-                  style={styles.roleGradient}
-                >
-                  <View style={styles.roleIconLight}>
-                    <MaterialCommunityIcons
-                      name="account"
-                      size={25}
-                      color="#06382E"
-                    />
-                  </View>
-
-                  <View style={styles.roleContent}>
-                    <Text style={styles.passengerTitle}>
-                      I NEED A RIDE
-                    </Text>
-
-                    <Text style={styles.passengerDescription}>
-                      Find a comfortable ride around Rishikesh
-                    </Text>
-                  </View>
-
-                  <View style={styles.arrowLight}>
-                    <MaterialCommunityIcons
-                      name="arrow-right"
-                      size={20}
-                      color="#06382E"
-                    />
-                  </View>
-                </LinearGradient>
-              </Pressable>
-
-              {/* DRIVER */}
-
-              <Pressable
-                style={styles.driverButton}
-                onPress={() => router.push('/login')}
-              >
-                <View style={styles.driverInner}>
-                  <View style={styles.driverIcon}>
-                    <MaterialCommunityIcons
-                      name="steering"
-                      size={25}
-                      color="#77E3C1"
-                    />
-                  </View>
-
-                  <View style={styles.roleContent}>
-                    <Text style={styles.driverTitle}>
-                      I WANT TO DRIVE
-                    </Text>
-
-                    <Text style={styles.driverDescription}>
-                      Drive around the city and earn with us
-                    </Text>
-                  </View>
-
-                  <MaterialCommunityIcons
-                    name="arrow-right"
-                    size={21}
-                    color="#78E2C1"
-                  />
-                </View>
-              </Pressable>
-            </View>
-
-            {/* TRUST */}
-
-            <View style={styles.trustRow}>
-              <TrustItem
+              <Feature
                 icon="shield-check"
-                text="Safe"
+                title="Safe & Trusted"
+                description="Verified drivers and real-time tracking."
+                desktop={desktop}
               />
-
-              <TrustItem
-                icon="clock-fast"
-                text="Reliable"
+              <Feature
+                icon="currency-inr"
+                title="Affordable Fares"
+                description="No hidden charges, just fair prices."
+                desktop={desktop}
               />
-
-              <TrustItem
-                icon="cash"
-                text="Fair"
-              />
-
-              <TrustItem
+              <Feature
                 icon="map-marker"
-                text="Local"
+                title="Anywhere, Anytime"
+                description="Ride to your destination whenever you need."
+                desktop={desktop}
               />
             </View>
           </View>
 
-          {/* ================= RIGHT 3D AREA ================= */}
-
-          <View
-            style={[
-              styles.rightSection,
-              desktop && styles.rightSectionDesktop,
-            ]}
-          >
-            {/* 3D PLATFORM */}
-
-            <View style={styles.platformShadow} />
-
-            <View style={styles.platform}>
-              <LinearGradient
-                colors={[
-                  'rgba(157,245,216,0.95)',
-                  'rgba(72,184,148,0.88)',
-                ]}
-                style={styles.platformGradient}
+          <View style={[styles.appShowcase, !desktop && styles.appShowcaseMobile]}>
+            <View style={styles.phoneFrame}>
+              <View style={styles.phoneNotch} />
+              <View style={styles.phoneHeader}>
+                <View style={styles.phoneLogo}>
+                  <MaterialCommunityIcons name="rickshaw" size={22} color="#087C50" />
+                </View>
+                <Text style={styles.phoneBrand}>RishiRide</Text>
+              </View>
+              <View style={styles.mapPanel}>
+                <View style={styles.mapRoadOne} />
+                <View style={styles.mapRoadTwo} />
+                <View style={styles.mapRoadThree} />
+                <View style={styles.mapRoute} />
+                <View style={styles.mapPinStart}>
+                  <MaterialCommunityIcons name="map-marker" size={19} color="#087C50" />
+                </View>
+                <View style={styles.mapPinEnd}>
+                  <MaterialCommunityIcons name="map-marker" size={23} color="#087C50" />
+                </View>
+              </View>
+              <View style={styles.phoneTripCard}>
+                <TripLocation icon="circle-small" title="Pickup Location" value="Your Location" />
+                <TripLocation icon="map-marker" title="Drop Location" value="Destination" />
+              </View>
+              <View style={styles.phoneRideCard}>
+                <MaterialCommunityIcons name="rickshaw" size={30} color="#087C50" />
+                <View style={styles.phoneRideCopy}>
+                  <Text style={styles.phoneRideTitle}>Auto Rickshaw</Text>
+                  <Text style={styles.phoneRideSub}>A comfortable local ride</Text>
+                </View>
+                <Text style={styles.phoneRidePrice}>₹</Text>
+              </View>
+              <View style={styles.phoneBookButton}>
+                <Text style={styles.phoneBookText}>Book Ride</Text>
+              </View>
+            </View>
+            <View style={styles.downloadCopy}>
+              <Text style={styles.downloadTitle}>A better ride is just a tap away.</Text>
+              <Text style={styles.downloadText}>
+                Simple local journeys, thoughtfully brought together in one place.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.downloadButton}
+                onPress={() => router.push('/signup')}
               >
-                <View style={styles.platformGlow} />
-
-                {/* Floating location */}
-
-                <View style={styles.floatingLocation}>
-                  <View style={styles.floatingDot} />
-
-                  <Text style={styles.floatingLocationText}>
-                    RISHIKESH
-                  </Text>
-                </View>
-
-                {/* Rickshaw */}
-
-                <View style={styles.rickshawShadow} />
-
-                <View style={styles.rickshawBody}>
-                  <MaterialCommunityIcons
-                    name="rickshaw"
-                    size={125}
-                    color="#063E32"
-                  />
-                </View>
-
-                {/* Floating card */}
-
-                <View style={styles.floatingRideCard}>
-                  <View style={styles.floatingRideIcon}>
-                    <MaterialCommunityIcons
-                      name="navigation"
-                      size={19}
-                      color="#0B5D49"
-                    />
-                  </View>
-
-                  <View>
-                    <Text style={styles.floatingRideSmall}>
-                      READY TO MOVE
-                    </Text>
-
-                    <Text style={styles.floatingRideTitle}>
-                      Explore Rishikesh
-                    </Text>
-                  </View>
-                </View>
-              </LinearGradient>
+                <MaterialCommunityIcons name="account-plus-outline" size={19} color="#FFFFFF" />
+                <Text style={styles.downloadButtonText}>Get started</Text>
+              </Pressable>
             </View>
+          </View>
+        </View>
 
-            {/* RIGHT TEXT */}
-
-            <Text style={styles.rightSmall}>
-              MOVE AROUND
+        <View
+          style={styles.howSection}
+        >
+          <View style={styles.sectionInner}>
+            <Text style={styles.sectionTitleCentered}>How It Works</Text>
+            <Text style={styles.sectionDescriptionCentered}>
+              Booking a rickshaw with RishiRide is super easy!
             </Text>
-
-            <Text style={styles.rightTitle}>
-              RISHIKESH
-            </Text>
-
-            <Text style={styles.rightDescription}>
-              One peaceful platform for passengers and drivers.
-            </Text>
-
-            {/* STATS */}
-
-            <View style={styles.statsRow}>
-              <Stat
-                number="24/7"
-                label="AVAILABLE"
+            <View style={[styles.stepsRow, !desktop && styles.stepsColumn]}>
+              <Step
+                number="1"
+                icon="map-marker-path"
+                title="Set Location"
+                description="Enter your pickup and drop location."
               />
-
-              <Stat
-                number="100%"
-                label="LOCAL"
+              <StepArrow desktop={desktop} />
+              <Step
+                number="2"
+                icon="account-lock"
+                title="Sign In"
+                description="Continue securely as a passenger."
               />
-
-              <Stat
-                number="₹"
-                label="FAIR FARES"
+              <StepArrow desktop={desktop} />
+              <Step
+                number="3"
+                icon="rickshaw"
+                title="Request a Ride"
+                description="Ride requests will be enabled when booking launches."
+              />
+              <StepArrow desktop={desktop} />
+              <Step
+                number="4"
+                icon="check-circle"
+                title="Ride & Enjoy"
+                description="Driver matching will follow when the booking service is ready."
               />
             </View>
           </View>
         </View>
 
-        {/* ================= FEATURES ================= */}
-
-        <View style={styles.features}>
-          <Text style={styles.sectionSmall}>
-            WHY RISHIRIDES?
-          </Text>
-
-          <Text style={styles.sectionTitle}>
-            A calmer way to travel.
-          </Text>
-
-          <Text style={styles.sectionDescription}>
-            Everything you need for simple local transportation.
-          </Text>
-
-          <View
-            style={[
-              styles.featureRow,
-              !desktop && styles.featureColumn,
-            ]}
+        <View style={styles.ctaSection}>
+          <LinearGradient
+            colors={['#052B22', '#074D39', '#087C50']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.ctaGradient}
           >
-            <FeatureCard
-              icon="account"
-              title="For Passengers"
-              text="Find convenient rides and travel comfortably around beautiful Rishikesh."
-            />
-
-            <FeatureCard
-              icon="steering"
-              title="For Drivers"
-              text="Drive when you want and earn from rides around the city."
-            />
-
-            <FeatureCard
-              icon="shield-check"
-              title="Safe & Reliable"
-              text="A trusted experience designed for peaceful local transportation."
-            />
-          </View>
+            <View style={[styles.ctaContent, styles.contentWidth, !desktop && styles.ctaContentMobile]}>
+              <View style={styles.ctaCopy}>
+                <Text style={styles.ctaKicker}>LET&apos;S RIDE TOGETHER</Text>
+                <Text style={styles.ctaTitle}>Your next ride starts here.</Text>
+                <Text style={styles.ctaDescription}>Local rides. A smoother way to get there.</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.ctaButton}
+                onPress={() => router.push('/signup')}
+              >
+                <Text style={styles.ctaButtonText}>Get Started</Text>
+                <MaterialCommunityIcons name="arrow-right" size={19} color="#073E2D" />
+              </Pressable>
+            </View>
+          </LinearGradient>
         </View>
 
-        {/* ================= BOTTOM CTA ================= */}
-
-        <View style={styles.bottomCTA}>
-          <View>
-            <Text style={styles.bottomSmall}>
-              READY WHEN YOU ARE
+        <View style={[styles.footer, styles.contentWidth]}>
+          <View style={styles.footerBrand}>
+            <Text style={styles.footerLogo}>
+              Rishi<Text style={styles.brandAccent}>Ride</Text>
             </Text>
-
-            <Text style={styles.bottomTitle}>
-              Let's move.
-            </Text>
+            <Text style={styles.footerTagline}>Ride Local. Go Far.</Text>
           </View>
-
-          <Pressable
-            style={styles.bottomButton}
-            onPress={() => router.push('/login')}
-          >
-            <Text style={styles.bottomButtonText}>
-              GET STARTED
-            </Text>
-
-            <MaterialCommunityIcons
-              name="arrow-right"
-              size={21}
-              color="#06382E"
-            />
-          </Pressable>
-        </View>
-
-        {/* ================= FOOTER ================= */}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerLogo}>
-            RISHIRIDES
-          </Text>
-
-          <Text style={styles.footerText}>
-            Ride calmly. Drive freely. Explore Rishikesh.
-          </Text>
-
-          <Text style={styles.copyright}>
-            © 2026 RishiRides. Made for Rishikesh.
-          </Text>
+          <Text style={styles.footerText}>Made for local journeys in Rishikesh.</Text>
+          <Text style={styles.copyright}>© 2026 RishiRide. All rights reserved.</Text>
         </View>
       </ScrollView>
     </View>
   );
 }
 
-/* =====================================================
-   TRUST ITEM
-===================================================== */
+function NavButton({
+  label,
+  active = false,
+  onPress,
+}: {
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={styles.navButton}
+      onPress={onPress}
+    >
+      <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
+      {active && <View style={styles.navUnderline} />}
+    </Pressable>
+  );
+}
 
 function TrustItem({
   icon,
-  text,
-}: {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  text: string;
-}) {
-  return (
-    <View style={styles.trustItem}>
-      <MaterialCommunityIcons
-        name={icon}
-        size={17}
-        color="#79E4C2"
-      />
-
-      <Text style={styles.trustText}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
-/* =====================================================
-   STAT
-===================================================== */
-
-function Stat({
-  number,
   label,
 }: {
-  number: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
 }) {
   return (
-    <View style={styles.stat}>
-      <Text style={styles.statNumber}>
-        {number}
-      </Text>
-
-      <Text style={styles.statLabel}>
-        {label}
-      </Text>
+    <View style={styles.trustItem}>
+      <MaterialCommunityIcons name={icon} size={17} color="#15343B" />
+      <Text style={styles.trustText}>{label}</Text>
     </View>
   );
 }
 
-/* =====================================================
-   FEATURE CARD
-===================================================== */
-
-function FeatureCard({
+function Feature({
   icon,
   title,
-  text,
+  description,
+  desktop,
 }: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;
-  text: string;
+  description: string;
+  desktop: boolean;
 }) {
   return (
-    <View style={styles.featureCard}>
-      <LinearGradient
-        colors={[
-          'rgba(129,235,200,0.13)',
-          'rgba(255,255,255,0.035)',
-        ]}
-        style={styles.featureCardGradient}
-      >
-        <View style={styles.featureIcon}>
-          <MaterialCommunityIcons
-            name={icon}
-            size={25}
-            color="#07382E"
-          />
-        </View>
-
-        <Text style={styles.featureTitle}>
-          {title}
-        </Text>
-
-        <Text style={styles.featureText}>
-          {text}
-        </Text>
-      </LinearGradient>
+    <View style={[styles.feature, desktop && styles.featureDesktop]}>
+      <View style={styles.featureIcon}>
+        <MaterialCommunityIcons name={icon} size={24} color="#087C50" />
+      </View>
+      <View style={styles.featureCopy}>
+        <Text style={styles.featureTitle}>{title}</Text>
+        <Text style={styles.featureDescription}>{description}</Text>
+      </View>
     </View>
   );
 }
 
-/* =====================================================
-   STYLES
-===================================================== */
+function TripLocation({
+  icon,
+  title,
+  value,
+}: {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  title: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.tripLocation}>
+      <MaterialCommunityIcons name={icon} size={16} color="#078653" />
+      <View>
+        <Text style={styles.tripLocationTitle}>{title}</Text>
+        <Text style={styles.tripLocationValue}>{value}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={17} color="#657672" />
+    </View>
+  );
+}
+
+function Step({
+  number,
+  icon,
+  title,
+  description,
+}: {
+  number: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  title: string;
+  description: string;
+}) {
+  return (
+    <View style={styles.step}>
+      <View style={styles.stepIcon}>
+        <MaterialCommunityIcons name={icon} size={31} color="#087C50" />
+      </View>
+      <Text style={styles.stepTitle}>{number}. {title}</Text>
+      <Text style={styles.stepDescription}>{description}</Text>
+    </View>
+  );
+}
+
+function StepArrow({ desktop }: { desktop: boolean }) {
+  return (
+    <MaterialCommunityIcons
+      name={desktop ? 'chevron-right' : 'chevron-down'}
+      size={25}
+      color="#078653"
+      style={styles.stepArrow}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#041814',
+    backgroundColor: '#FFFFFF',
   },
-
-  /* ================= BACKGROUND ================= */
-
-  glowTop: {
-    position: 'absolute',
-    width: 450,
-    height: 450,
-    borderRadius: 225,
-    backgroundColor: '#38D6A7',
-    opacity: 0.07,
-    top: -260,
-    right: -140,
-  },
-
-  glowLeft: {
-    position: 'absolute',
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    backgroundColor: '#42E0B1',
-    opacity: 0.045,
-    top: 450,
-    left: -220,
-  },
-
-  glowRight: {
-    position: 'absolute',
-    width: 400,
-    height: 400,
-    borderRadius: 200,
-    backgroundColor: '#5DE6BD',
-    opacity: 0.04,
-    bottom: 100,
-    right: -250,
-  },
-
-  circleOne: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 1,
-    borderColor: 'rgba(128,235,201,0.09)',
-    top: 170,
-    right: 50,
-  },
-
-  circleTwo: {
-    position: 'absolute',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 1,
-    borderColor: 'rgba(128,235,201,0.08)',
-    top: 330,
-    left: 40,
-  },
-
-  circleThree: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 1,
-    borderColor: 'rgba(128,235,201,0.05)',
-    bottom: 300,
-    right: -80,
-  },
-
-  /* ================= HEADER ================= */
-
-  header: {
-    width: '92%',
+  contentWidth: {
+    width: '90%',
+    maxWidth: 1180,
     alignSelf: 'center',
+  },
+  sectionInner: {
+    width: '90%',
+    maxWidth: 1180,
+    alignSelf: 'center',
+  },
+  header: {
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 13,
+    gap: 18,
   },
-
-  headerDesktop: {
-    width: '88%',
-    maxWidth: 1400,
-  },
-
-  logoContainer: {
+  brand: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 9,
   },
-
-  logoOuter: {
-    width: 51,
-    height: 51,
-    borderRadius: 18,
-    backgroundColor: 'rgba(126,239,202,0.10)',
-    padding: 3,
-    marginRight: 10,
+  brandIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    backgroundColor: '#E5F6E9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  logoCircle: {
-    flex: 1,
-    borderRadius: 15,
+  brandName: {
+    color: '#152A32',
+    fontSize: 22,
+    lineHeight: 25,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+  },
+  brandAccent: {
+    color: '#078653',
+  },
+  brandTagline: {
+    color: '#53656A',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  navigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 22,
+  },
+  mobileMenuButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: '#EFF8F1',
+  },
+  mobileMenu: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#E8F0EA',
+  },
+  mobileMenuActions: {
+    flexDirection: 'row',
+    gap: 9,
+    paddingVertical: 8,
+  },
+  navButton: {
+    minHeight: 38,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  logoRishi: {
-    color: '#F0FFF9',
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 2,
+  navText: {
+    color: '#283B41',
+    fontSize: 12,
+    fontWeight: '700',
   },
-
-  logoRides: {
-    color: '#6FD9B7',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 2.5,
-    marginTop: -1,
+  navTextActive: {
+    color: '#087C50',
   },
-
-  nav: {
+  navUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    height: 2,
+    width: 27,
+    borderRadius: 2,
+    backgroundColor: '#087C50',
+  },
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 9,
+  },
+  loginButton: {
+    minWidth: 76,
+    minHeight: 38,
+    borderWidth: 1,
+    borderColor: '#078653',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+  },
+  loginButtonText: {
+    color: '#087C50',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  signupButton: {
+    minWidth: 83,
+    minHeight: 38,
+    borderRadius: 10,
+    backgroundColor: '#078653',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+  },
+  signupButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  heroSection: {
+    backgroundColor: '#F3FAF5',
+    overflow: 'hidden',
+  },
+  hero: {
+    paddingTop: 42,
+    paddingBottom: 45,
     gap: 34,
   },
-
-  navActive: {
-    color: '#78E6C2',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-
-  navText: {
-    color: 'rgba(235,255,248,0.62)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-
-  headerButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-
-  loginButton: {
-    paddingHorizontal: 17,
-    paddingVertical: 10,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(147,237,208,0.30)',
-    backgroundColor: 'rgba(255,255,255,0.025)',
-  },
-
-  loginText: {
-    color: '#DFFFF3',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-  },
-
-  signupButton: {
-    backgroundColor: '#72E0BC',
-    paddingHorizontal: 17,
-    paddingVertical: 11,
-    borderRadius: 22,
-  },
-
-  signupText: {
-    color: '#07362C',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-  },
-
-  /* ================= HERO ================= */
-
-  hero: {
-    width: '92%',
-    alignSelf: 'center',
-    paddingTop: 60,
-    paddingBottom: 70,
-  },
-
   heroDesktop: {
-    width: '88%',
-    maxWidth: 1400,
-    minHeight: 600,
+    minHeight: 445,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  heroLeft: {
+  heroCopy: {
     width: '100%',
   },
-
-  heroLeftDesktop: {
-    width: '53%',
+  heroCopyDesktop: {
+    width: '52%',
   },
-
-  locationBadge: {
+  promisePill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(137,237,207,0.09)',
-    borderWidth: 1,
-    borderColor: 'rgba(137,237,207,0.16)',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 25,
-    marginBottom: 20,
-  },
-
-  locationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#6EE2BB',
-    marginRight: 7,
-  },
-
-  locationText: {
-    color: '#9DECD3',
-    fontSize: 9,
-    fontWeight: '900',
-    marginLeft: 5,
-    letterSpacing: 1.1,
-  },
-
-  heroTitle: {
-    color: '#F1FFF9',
-    fontSize: 49,
-    fontWeight: '900',
-    lineHeight: 54,
-    letterSpacing: -1.2,
-  },
-
-  heroHighlight: {
-    color: '#70E0BA',
-    fontSize: 52,
-    fontWeight: '900',
-    lineHeight: 59,
-    letterSpacing: -1.4,
-  },
-
-  heroDescription: {
-    color: 'rgba(224,247,239,0.68)',
-    fontSize: 15,
-    lineHeight: 24,
-    marginTop: 18,
-    maxWidth: 560,
-  },
-
-  /* ================= ROLE BUTTONS ================= */
-
-  roleButtons: {
-    marginTop: 30,
-    gap: 12,
-    maxWidth: 570,
-  },
-
-  passengerButton: {
-    minHeight: 76,
-    borderRadius: 21,
-    overflow: 'hidden',
-    elevation: 7,
-    shadowColor: '#5FE0B7',
-    shadowOpacity: 0.15,
-    shadowRadius: 15,
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-  },
-
-  roleGradient: {
-    flex: 1,
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  roleIconLight: {
-    width: 48,
-    height: 48,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.52)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  roleContent: {
-    flex: 1,
-    marginLeft: 13,
-  },
-
-  passengerTitle: {
-    color: '#06372D',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-
-  passengerDescription: {
-    color: '#397A69',
-    fontSize: 11,
-    marginTop: 5,
-  },
-
-  arrowLight: {
-    width: 39,
-    height: 39,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  driverButton: {
-    minHeight: 76,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.055)',
-    borderWidth: 1,
-    borderColor: 'rgba(140,235,207,0.13)',
-    overflow: 'hidden',
-  },
-
-  driverInner: {
-    flex: 1,
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  driverIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 17,
-    backgroundColor: 'rgba(110,226,188,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  driverTitle: {
-    color: '#E9FFF7',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-
-  driverDescription: {
-    color: 'rgba(214,241,232,0.52)',
-    fontSize: 11,
-    marginTop: 5,
-  },
-
-  /* ================= TRUST ================= */
-
-  trustRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
-    marginTop: 27,
-  },
-
-  trustItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  trustText: {
-    color: 'rgba(228,250,242,0.65)',
-    fontSize: 10,
-    fontWeight: '800',
-    marginLeft: 6,
-  },
-
-  /* ================= RIGHT 3D ================= */
-
-  rightSection: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 60,
-  },
-
-  rightSectionDesktop: {
-    width: '41%',
-    marginTop: 0,
-  },
-
-  platformShadow: {
-    position: 'absolute',
-    width: 260,
-    height: 45,
-    borderRadius: 100,
-    backgroundColor: '#000000',
-    opacity: 0.38,
-    bottom: 145,
-    transform: [{ scaleX: 1.15 }],
-  },
-
-  platform: {
-    width: 300,
-    height: 320,
-    borderRadius: 50,
-    overflow: 'hidden',
-    transform: [{ rotate: '-4deg' }],
-    elevation: 18,
-    shadowColor: '#4BE0B1',
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
-    shadowOffset: {
-      width: 0,
-      height: 18,
-    },
-  },
-
-  platformGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-
-  platformGlow: {
-    position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: '#FFFFFF',
-    opacity: 0.12,
-  },
-
-  floatingLocation: {
-    position: 'absolute',
-    top: 19,
-    left: 19,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
+    gap: 8,
+    paddingHorizontal: 12,
     paddingVertical: 7,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.76)',
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#14352B',
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 2 },
   },
-
-  floatingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#168365',
-    marginRight: 6,
-  },
-
-  floatingLocationText: {
-    color: '#0A5B48',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-
-  rickshawShadow: {
-    position: 'absolute',
-    width: 170,
-    height: 28,
-    borderRadius: 100,
-    backgroundColor: '#124A3C',
-    opacity: 0.25,
-    bottom: 76,
-  },
-
-  rickshawBody: {
-    transform: [{ rotate: '4deg' }],
-  },
-
-  floatingRideCard: {
-    position: 'absolute',
-    right: 12,
-    bottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.90)',
-    borderRadius: 18,
-    padding: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 8,
-  },
-
-  floatingRideIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#C7F8E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-
-  floatingRideSmall: {
-    color: '#528477',
-    fontSize: 7,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-
-  floatingRideTitle: {
-    color: '#164B3E',
-    fontSize: 10,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-
-  rightSmall: {
-    color: '#67DDB8',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginTop: 27,
-  },
-
-  rightTitle: {
-    color: '#EFFFF9',
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-
-  rightDescription: {
-    color: 'rgba(219,246,237,0.55)',
+  promiseText: {
+    color: '#25363C',
     fontSize: 11,
-    marginTop: 5,
-    textAlign: 'center',
+    fontWeight: '700',
   },
-
-  /* ================= STATS ================= */
-
-  statsRow: {
+  promiseSeparator: {
+    color: '#84928F',
+    fontSize: 13,
+  },
+  heroTitle: {
+    color: '#172A33',
+    fontSize: 52,
+    lineHeight: 57,
+    fontWeight: '900',
+    letterSpacing: -1.5,
+  },
+  heroTitleMobile: {
+    fontSize: 42,
+    lineHeight: 47,
+  },
+  heroTitleAccent: {
+    color: '#087C50',
+  },
+  heroDescription: {
+    maxWidth: 490,
+    color: '#586D75',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
+  },
+  bookingCard: {
+    minHeight: 76,
+    maxWidth: 570,
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 9,
     marginTop: 22,
+    elevation: 5,
+    shadowColor: '#163B2D',
+    shadowOpacity: 0.1,
+    shadowRadius: 13,
+    shadowOffset: { width: 0, height: 5 },
   },
-
-  stat: {
-    minWidth: 82,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.055)',
-    borderWidth: 1,
-    borderColor: 'rgba(145,239,211,0.09)',
-    alignItems: 'center',
+  bookingCardMobile: {
+    maxWidth: 520,
+    flexWrap: 'wrap',
+    gap: 4,
   },
-
-  statNumber: {
-    color: '#83E8C7',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-
-  statLabel: {
-    color: 'rgba(221,245,237,0.45)',
-    fontSize: 7,
-    fontWeight: '900',
-    marginTop: 4,
-    letterSpacing: 0.7,
-  },
-
-  /* ================= FEATURES ================= */
-
-  features: {
-    width: '92%',
-    maxWidth: 1400,
-    alignSelf: 'center',
-    paddingVertical: 50,
-  },
-
-  sectionSmall: {
-    color: '#6DDEB9',
-    textAlign: 'center',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-
-  sectionTitle: {
-    color: '#F0FFF9',
-    textAlign: 'center',
-    fontSize: 29,
-    fontWeight: '900',
-    marginTop: 7,
-  },
-
-  sectionDescription: {
-    color: 'rgba(219,245,236,0.50)',
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: 7,
-    marginBottom: 27,
-  },
-
-  featureRow: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-
-  featureColumn: {
-    flexDirection: 'column',
-  },
-
-  featureCard: {
+  locationField: {
+    minWidth: 0,
     flex: 1,
-    borderRadius: 25,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135,236,205,0.10)',
-  },
-
-  featureCardGradient: {
-    minHeight: 205,
-    padding: 22,
-  },
-
-  featureIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
-    backgroundColor: '#9AF0D1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-
-  featureTitle: {
-    color: '#EFFFF9',
-    fontSize: 17,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-
-  featureText: {
-    color: 'rgba(218,243,235,0.56)',
-    fontSize: 12,
-    lineHeight: 19,
-  },
-
-  /* ================= BOTTOM CTA ================= */
-
-  bottomCTA: {
-    width: '92%',
-    maxWidth: 1400,
-    alignSelf: 'center',
-    borderRadius: 28,
-    backgroundColor: 'rgba(119,226,190,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(119,226,190,0.12)',
-    padding: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  bottomSmall: {
-    color: '#6DDCB7',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-
-  bottomTitle: {
-    color: '#EDFFF8',
-    fontSize: 26,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-
-  bottomButton: {
-    backgroundColor: '#B7F7DE',
-    borderRadius: 25,
-    paddingHorizontal: 17,
-    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 7,
   },
-
-  bottomButtonText: {
-    color: '#07382E',
+  locationInputWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  locationLabel: {
+    color: '#33474D',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
   },
-
-  /* ================= FOOTER ================= */
-
-  footer: {
-    width: '92%',
-    maxWidth: 1400,
-    alignSelf: 'center',
+  locationInput: {
+    minWidth: 0,
+    padding: 0,
+    height: 22,
+    color: '#23373E',
+    fontSize: 12,
+  },
+  fieldDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#DCE5E1',
+    marginHorizontal: 4,
+  },
+  bookButton: {
+    minHeight: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(138,236,208,0.09)',
-    paddingTop: 28,
-    marginTop: 50,
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#078653',
+    borderRadius: 11,
   },
-
-  footerLogo: {
-    color: '#71DEBA',
+  bookButtonMobile: {
+    width: '100%',
+    marginTop: 5,
+  },
+  bookButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 15,
+    marginTop: 23,
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trustText: {
+    color: '#263A40',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  trustDivider: {
+    width: 1,
+    height: 15,
+    backgroundColor: '#D8E5DE',
+  },
+  heroArt: {
+    width: '43%',
+    height: 355,
+    alignSelf: 'center',
+    borderRadius: 22,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroArtMobile: {
+    width: '100%',
+    height: 300,
+    marginTop: 10,
+  },
+  sun: {
+    position: 'absolute',
+    top: 35,
+    right: 56,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFF0BA',
+    opacity: 0.9,
+  },
+  cityline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 90,
+    height: 125,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    opacity: 0.5,
+  },
+  building: {
+    width: '13%',
+    backgroundColor: '#A8C5C6',
+  },
+  buildingOne: { height: '45%' },
+  buildingTwo: { height: '82%' },
+  buildingThree: { height: '60%' },
+  buildingFour: { height: '95%' },
+  buildingFive: { height: '53%' },
+  hillsBack: {
+    position: 'absolute',
+    left: -20,
+    right: -20,
+    bottom: 70,
+    height: 95,
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+    backgroundColor: '#B7DCC8',
+    transform: [{ scaleX: 1.15 }],
+  },
+  hillsFront: {
+    position: 'absolute',
+    left: -35,
+    right: -35,
+    bottom: 47,
+    height: 90,
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+    backgroundColor: '#80BA91',
+    transform: [{ scaleX: 1.1 }],
+  },
+  road: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 63,
+    backgroundColor: '#576965',
+  },
+  roadStripe: {
+    position: 'absolute',
+    bottom: 28,
+    left: '12%',
+    width: '76%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#F7E9AD',
+  },
+  rickshawGlow: {
+    position: 'absolute',
+    bottom: 64,
+    width: 195,
+    height: 62,
+    borderRadius: 100,
+    backgroundColor: '#315746',
+    opacity: 0.19,
+  },
+  heroRickshaw: {
+    position: 'absolute',
+    bottom: 57,
+    textShadowColor: 'rgba(255,255,255,0.55)',
+    textShadowOffset: { width: 1, height: 2 },
+    textShadowRadius: 3,
+  },
+  artLabel: {
+    position: 'absolute',
+    top: 34,
+    left: 23,
+    transform: [{ rotate: '-7deg' }],
+  },
+  artLabelText: {
+    color: '#17363B',
     fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 3,
+    fontWeight: '800',
+    fontStyle: 'italic',
   },
-
-  footerText: {
-    color: 'rgba(216,242,234,0.45)',
+  artLabelUnderline: {
+    width: 48,
+    height: 2,
+    backgroundColor: '#087C50',
+    marginTop: 4,
+    transform: [{ rotate: '-12deg' }],
+  },
+  artBadge: {
+    position: 'absolute',
+    right: 12,
+    bottom: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  onlineDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#078653',
+  },
+  artBadgeText: {
+    color: '#334940',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  aboutSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 35,
+    paddingTop: 49,
+    paddingBottom: 44,
+  },
+  aboutCopy: {
+    width: '100%',
+  },
+  aboutCopyDesktop: {
+    width: '51%',
+  },
+  eyebrow: {
+    color: '#078653',
     fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  sectionTitle: {
+    color: '#192D36',
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '900',
+    marginTop: 7,
+  },
+  sectionDescription: {
+    maxWidth: 500,
+    color: '#61747A',
+    fontSize: 13,
+    lineHeight: 20,
     marginTop: 8,
   },
-
-  copyright: {
-    color: 'rgba(216,242,234,0.25)',
+  featuresGrid: {
+    marginTop: 24,
+    gap: 16,
+  },
+  featuresGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  feature: {
+    width: '100%',
+    minHeight: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5EEE9',
+    paddingBottom: 12,
+  },
+  featureDesktop: {
+    width: '48%',
+  },
+  featureIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5F7E8',
+  },
+  featureCopy: {
+    flex: 1,
+  },
+  featureTitle: {
+    color: '#1C3038',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  featureDescription: {
+    color: '#687B80',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  appShowcase: {
+    flex: 1,
+    minHeight: 360,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    borderRadius: 28,
+    backgroundColor: '#F2FAF3',
+    padding: 22,
+  },
+  appShowcaseMobile: {
+    width: '100%',
+    flexDirection: 'column',
+    marginTop: 24,
+  },
+  phoneFrame: {
+    width: 178,
+    minHeight: 314,
+    overflow: 'hidden',
+    padding: 10,
+    paddingTop: 18,
+    borderWidth: 5,
+    borderColor: '#17252A',
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    elevation: 8,
+    shadowColor: '#163B2D',
+    shadowOpacity: 0.18,
+    shadowRadius: 13,
+    shadowOffset: { width: 0, height: 7 },
+  },
+  phoneNotch: {
+    position: 'absolute',
+    zIndex: 1,
+    width: 55,
+    height: 11,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    top: 0,
+    alignSelf: 'center',
+    backgroundColor: '#17252A',
+  },
+  phoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 31,
+    marginBottom: 7,
+  },
+  phoneLogo: {
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5F7E8',
+  },
+  phoneBrand: {
+    color: '#1A3335',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  mapPanel: {
+    height: 113,
+    overflow: 'hidden',
+    position: 'relative',
+    borderRadius: 12,
+    backgroundColor: '#F2F6F1',
+  },
+  mapRoadOne: {
+    position: 'absolute',
+    top: 0,
+    left: '28%',
+    width: 9,
+    height: '120%',
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '29deg' }],
+  },
+  mapRoadTwo: {
+    position: 'absolute',
+    top: '39%',
+    left: '-10%',
+    width: '125%',
+    height: 8,
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '-19deg' }],
+  },
+  mapRoadThree: {
+    position: 'absolute',
+    top: '6%',
+    right: '22%',
+    width: 8,
+    height: '120%',
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '-36deg' }],
+  },
+  mapRoute: {
+    position: 'absolute',
+    top: '48%',
+    left: '24%',
+    width: '48%',
+    height: 3,
+    backgroundColor: '#087C50',
+    transform: [{ rotate: '-32deg' }],
+  },
+  mapPinStart: {
+    position: 'absolute',
+    left: '18%',
+    bottom: '21%',
+  },
+  mapPinEnd: {
+    position: 'absolute',
+    top: '10%',
+    right: '23%',
+  },
+  phoneTripCard: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginTop: 8,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+  },
+  tripLocation: {
+    minHeight: 37,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EDF1EE',
+  },
+  tripLocationTitle: {
+    color: '#87928D',
+    fontSize: 8,
+  },
+  tripLocationValue: {
+    color: '#293C3A',
     fontSize: 9,
-    marginTop: 13,
-    marginBottom: 10,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  phoneRideCard: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 7,
+  },
+  phoneRideCopy: {
+    flex: 1,
+  },
+  phoneRideTitle: {
+    color: '#273C39',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  phoneRideSub: {
+    color: '#74827C',
+    fontSize: 7,
+    marginTop: 2,
+  },
+  phoneRidePrice: {
+    color: '#087C50',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  phoneBookButton: {
+    minHeight: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: '#078653',
+    marginTop: 3,
+  },
+  phoneBookText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  downloadCopy: {
+    flex: 1,
+    maxWidth: 205,
+  },
+  downloadTitle: {
+    color: '#17363B',
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  downloadText: {
+    color: '#5D7274',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 9,
+  },
+  downloadButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#078653',
+    marginTop: 15,
+  },
+  downloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  howSection: {
+    backgroundColor: '#FBFDFC',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#EDF2EE',
+    paddingVertical: 34,
+  },
+  sectionTitleCentered: {
+    color: '#192D36',
+    fontSize: 25,
+    lineHeight: 31,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  sectionDescriptionCentered: {
+    color: '#65777D',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  stepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 24,
+  },
+  stepsColumn: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  step: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  stepIcon: {
+    width: 69,
+    height: 69,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E2F5E5',
+  },
+  stepTitle: {
+    color: '#263A40',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 9,
+  },
+  stepDescription: {
+    maxWidth: 155,
+    color: '#708087',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  stepArrow: {
+    flexShrink: 0,
+  },
+  ctaSection: {
+    marginTop: 0,
+  },
+  ctaGradient: {
+    paddingVertical: 35,
+  },
+  ctaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 18,
+  },
+  ctaContentMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  ctaCopy: {
+    flex: 1,
+  },
+  ctaKicker: {
+    color: '#A7E9CC',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  ctaTitle: {
+    color: '#FFFFFF',
+    fontSize: 27,
+    lineHeight: 34,
+    fontWeight: '900',
+    marginTop: 5,
+  },
+  ctaDescription: {
+    color: '#C6DDD1',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 17,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#C8F3D8',
+  },
+  ctaButtonText: {
+    color: '#073E2D',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  footer: {
+    minHeight: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingVertical: 18,
+  },
+  footerBrand: {
+    alignItems: 'flex-start',
+  },
+  footerLogo: {
+    color: '#17313A',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  footerTagline: {
+    color: '#637477',
+    fontSize: 9,
+    marginTop: 2,
+  },
+  footerText: {
+    color: '#637477',
+    fontSize: 10,
+  },
+  copyright: {
+    color: '#82908F',
+    fontSize: 9,
   },
 });
