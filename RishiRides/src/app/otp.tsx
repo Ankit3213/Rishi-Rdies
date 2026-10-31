@@ -15,8 +15,10 @@ import { resendOtp, verifyOtp } from '../api/otp';
 
 export default function OtpScreen() {
   const router = useRouter();
-  const { mobile, role, sessionId, flow, developmentOtp } = useLocalSearchParams<{
+  const { mobile, maskedEmail, deliveryMethod, role, sessionId, flow, developmentOtp } = useLocalSearchParams<{
     mobile?: string;
+    maskedEmail?: string;
+    deliveryMethod?: 'email' | 'sms';
     role?: UserRole;
     sessionId?: string;
     flow?: string;
@@ -26,6 +28,9 @@ export default function OtpScreen() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState('');
+  const verifyingEmail = deliveryMethod
+    ? deliveryMethod === 'email'
+    : Boolean(maskedEmail);
 
   const handleVerify = async () => {
     setNotice('');
@@ -55,7 +60,7 @@ export default function OtpScreen() {
       router.replace(
         role === 'driver'
           ? '/dashboards/Drivers/driver-dashboard'
-          : '/dashboards/passenger/passenger-dashboard'
+          : '/dashboards/passenger/passenger'
       );
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Verification failed. Please try again.');
@@ -98,18 +103,26 @@ export default function OtpScreen() {
           <MaterialCommunityIcons name="shield-check" size={23} color="#FFFFFF" />
         </View>
         <View style={styles.headingCopy}>
-          <Text style={styles.title}>Verify your number</Text>
-          <Text style={styles.subtitle}>One last step to secure your account</Text>
+          <Text style={styles.title}>{verifyingEmail ? 'Verify your email' : 'Verify your number'}</Text>
+          <Text style={styles.subtitle}>
+            {verifyingEmail ? 'Check your Gmail inbox for a one-time code' : 'Check your phone for a one-time code'}
+          </Text>
         </View>
       </View>
 
       <Text style={styles.description}>
         Enter the 6-digit code sent to{' '}
-        <Text style={styles.mobile}>{mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}</Text>.
+        <Text style={styles.mobile}>
+          {verifyingEmail
+            ? maskedEmail || 'your email address'
+            : mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}
+        </Text>.
       </Text>
 
       {developmentOtp && (
-        <Text style={styles.description}>Development test code: <Text style={styles.mobile}>{developmentOtp}</Text></Text>
+        <Text style={styles.description}>
+          Development-only code (no email or SMS sent): <Text style={styles.mobile}>{developmentOtp}</Text>
+        </Text>
       )}
 
       <Text style={styles.label}>VERIFICATION CODE</Text>
@@ -126,7 +139,7 @@ export default function OtpScreen() {
         placeholder="• • • • • •"
         placeholderTextColor="#A6B6B7"
         textContentType="oneTimeCode"
-        autoComplete="sms-otp"
+        autoComplete={verifyingEmail ? 'one-time-code' : 'sms-otp'}
         autoFocus
         returnKeyType="done"
         onSubmitEditing={handleVerify}

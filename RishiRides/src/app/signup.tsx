@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -10,6 +11,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 import AuthLayout from '../components/auth-layout';
+import GoogleSignInButton from '../components/google-sign-in-button';
 import { signupUser } from '../api/signup';
 
 export default function SignupScreen() {
@@ -65,8 +67,11 @@ export default function SignupScreen() {
         pathname: '/otp',
         params: {
           mobile: response.mobile,
+          ...(response.maskedEmail ? { maskedEmail: response.maskedEmail } : {}),
+          deliveryMethod: response.deliveryMethod,
           role: response.role,
           sessionId: response.sessionId,
+          ...(response.developmentOtp ? { developmentOtp: response.developmentOtp } : {}),
           flow: flow === 'booking' ? 'booking-signup' : 'signup',
         },
       });
@@ -75,6 +80,16 @@ export default function SignupScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleAuthenticated = async ({ token, mobile: accountMobile }: { token: string; mobile: string }) => {
+    await AsyncStorage.multiSet([
+      ['isLoggedIn', 'true'],
+      ['userRole', 'passenger'],
+      ['userMobile', accountMobile],
+      ['authToken', token],
+    ]);
+    router.replace('/dashboards/passenger/passenger');
   };
 
   return (
@@ -128,8 +143,8 @@ export default function SignupScreen() {
       <Field
         accessibilityLabel="Email address"
         icon="email-outline"
-        label="EMAIL ADDRESS"
-        placeholder="Enter your email address"
+        label="GMAIL ADDRESS"
+        placeholder="Enter your Gmail address"
         value={email}
         onChangeText={(value) => {
           setEmail(value);
@@ -201,10 +216,7 @@ export default function SignupScreen() {
         <Text style={styles.dividerText}>OR</Text>
         <View style={styles.divider} />
       </View>
-      <View style={styles.googleButton}>
-        <MaterialCommunityIcons name="google" size={17} color="#4285F4" />
-        <Text style={styles.googleText}>Google sign-up is not connected</Text>
-      </View>
+      <GoogleSignInButton onAuthenticated={handleGoogleAuthenticated} disabled={loading} />
     </AuthLayout>
   );
 }
@@ -365,20 +377,5 @@ const styles = StyleSheet.create({
     color: '#97A5A4',
     fontSize: 8,
     fontWeight: '700',
-  },
-  googleButton: {
-    minHeight: 35,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DCE6E8',
-    backgroundColor: '#FFFFFF',
-  },
-  googleText: {
-    color: '#71838A',
-    fontSize: 9,
   },
 });

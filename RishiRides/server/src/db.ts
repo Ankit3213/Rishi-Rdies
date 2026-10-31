@@ -5,6 +5,7 @@ export type PassengerUser = {
   _id: ObjectId;
   name: string;
   email: string;
+  googleSubject?: string;
   mobile: string;
   passwordHash: string;
   role: 'passenger';
@@ -39,6 +40,7 @@ export async function connectDatabase(): Promise<Db> {
       database.collection<PassengerUser>('users').createIndexes([
         { key: { email: 1 }, unique: true, name: 'users_email_unique' },
         { key: { mobile: 1 }, unique: true, name: 'users_mobile_unique' },
+        { key: { googleSubject: 1 }, unique: true, sparse: true, name: 'users_google_subject_unique' },
         { key: { status: 1, role: 1 }, name: 'users_status_role' },
       ]),
       database.collection<OtpChallenge>('otpChallenges').createIndexes([

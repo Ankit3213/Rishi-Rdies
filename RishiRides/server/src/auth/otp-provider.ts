@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer';
 import { config } from '../config';
 
 export class OtpProviderError extends Error {}
@@ -31,8 +32,31 @@ async function requestTwilio(
   return response.json() as Promise<{ status?: string }>;
 }
 
-export async function sendOtp(mobile: string, fetcher: typeof fetch = fetch): Promise<void> {
+export async function sendOtp(
+  email: string,
+  mobile: string,
+  code: string,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
   if (config.OTP_PROVIDER === 'simulator') return;
+  if (config.OTP_PROVIDER === 'email-smtp') {
+    const transporter = nodemailer.createTransport({
+      host: config.SMTP_HOST,
+      port: config.SMTP_PORT,
+      secure: config.SMTP_SECURE,
+      auth: {
+        user: config.SMTP_USER,
+        pass: config.SMTP_PASSWORD,
+      },
+    });
+    await transporter.sendMail({
+      from: config.SMTP_FROM ?? config.SMTP_USER,
+      to: email,
+      subject: 'Your RishiRide verification code',
+      text: `Your RishiRide verification code is ${code}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`,
+    });
+    return;
+  }
   await requestTwilio('Verifications', new URLSearchParams({ To: `+91${mobile}`, Channel: 'sms' }), fetcher);
 }
 

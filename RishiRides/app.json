@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "RishiRides",
@@ -6,6 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "rishirides",
+    "ios": {
+      "bundleIdentifier": "com.rishirides.app"
+    },
+    "android": {
+      "package": "com.rishirides.app",
+      "googleServicesFile": "./google-services.json"
+    },
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
@@ -20,7 +26,10 @@
         {
           "locationWhenInUsePermission": "RishiRide uses your location to set your pickup point when you ask it to."
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-image",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true

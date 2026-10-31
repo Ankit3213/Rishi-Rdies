@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import AuthLayout from '../components/auth-layout';
+import GoogleSignInButton from '../components/google-sign-in-button';
 import { loginUser } from '../api/login';
 
 const rememberedMobileKey = 'rememberedMobile';
@@ -83,6 +84,8 @@ export default function LoginScreen() {
         pathname: '/otp',
         params: {
           mobile: response.mobile,
+          ...(response.maskedEmail ? { maskedEmail: response.maskedEmail } : {}),
+          deliveryMethod: response.deliveryMethod,
           role: response.role,
           sessionId: response.sessionId,
           ...(response.developmentOtp ? { developmentOtp: response.developmentOtp } : {}),
@@ -94,6 +97,16 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleAuthenticated = async ({ token, mobile: accountMobile }: { token: string; mobile: string }) => {
+    await AsyncStorage.multiSet([
+      ['isLoggedIn', 'true'],
+      ['userRole', 'passenger'],
+      ['userMobile', accountMobile],
+      ['authToken', token],
+    ]);
+    router.replace('/dashboards/passenger/passenger');
   };
 
   return (
@@ -239,10 +252,7 @@ export default function LoginScreen() {
         <Text style={styles.dividerText}>OR</Text>
         <View style={styles.divider} />
       </View>
-      <View style={styles.googleButton}>
-        <MaterialCommunityIcons name="google" size={17} color="#4285F4" />
-        <Text style={styles.googleText}>Google sign-in is not connected</Text>
-      </View>
+      <GoogleSignInButton onAuthenticated={handleGoogleAuthenticated} disabled={loading} />
       <View style={styles.securityRow}>
         <MaterialCommunityIcons name="shield-check-outline" size={16} color="#078653" />
         <Text style={styles.securityText}>Your information stays secure</Text>
@@ -391,21 +401,6 @@ const styles = StyleSheet.create({
     color: '#97A5A4',
     fontSize: 9,
     fontWeight: '700',
-  },
-  googleButton: {
-    minHeight: 41,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: '#DCE6E8',
-    backgroundColor: '#FFFFFF',
-  },
-  googleText: {
-    color: '#71838A',
-    fontSize: 10,
   },
   securityRow: {
     flexDirection: 'row',

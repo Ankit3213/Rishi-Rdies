@@ -1,3 +1,5 @@
+import { API_BASE_URL, authenticationServiceError } from './config';
+
 export type OtpResponse = {
   verified: boolean;
   token?: string;
@@ -8,8 +10,6 @@ type OtpRequest = {
   mobile: string;
   otp: string;
 };
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
 async function errorMessage(response: Response, fallback: string): Promise<string> {
   const body = await response.json().catch(() => null) as {
@@ -30,6 +30,8 @@ export async function verifyOtp(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
+  }).catch(() => {
+    throw authenticationServiceError();
   });
 
   if (!response.ok) {
@@ -51,6 +53,8 @@ export async function resendOtp(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, mobile }),
+  }).catch(() => {
+    throw authenticationServiceError();
   });
 
   if (!response.ok) {

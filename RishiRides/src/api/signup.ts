@@ -1,4 +1,5 @@
 import type { LoginResponse } from './login';
+import { API_BASE_URL, authenticationServiceError } from './config';
 
 type SignupRequest = {
   name: string;
@@ -6,8 +7,6 @@ type SignupRequest = {
   email: string;
   password: string;
 };
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
 export async function signupUser(
   request: SignupRequest
@@ -20,6 +19,8 @@ export async function signupUser(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...request, role: 'passenger' }),
+  }).catch(() => {
+    throw authenticationServiceError();
   });
 
   if (!response.ok) {
@@ -31,13 +32,15 @@ export async function signupUser(
   }
 
   const result = await response.json() as Partial<LoginResponse>;
-  if (!result.sessionId || !result.mobile || result.role !== 'passenger') {
+  if (!result.sessionId || !result.mobile || !result.deliveryMethod || result.role !== 'passenger') {
     throw new Error('The sign-up service returned an invalid verification session.');
   }
 
   return {
     sessionId: result.sessionId,
     mobile: result.mobile,
+    ...(result.maskedEmail ? { maskedEmail: result.maskedEmail } : {}),
+    deliveryMethod: result.deliveryMethod,
     role: 'passenger',
     maskedMobile: result.maskedMobile || `******${result.mobile.slice(-4)}`,
     ...(result.developmentOtp ? { developmentOtp: result.developmentOtp } : {}),

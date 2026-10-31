@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vehicleForPassengerCount } from '../../../domain/ride-rules';
+import { API_BASE_URL } from '../../../api/config';
 
-const bookingConfigured = Boolean(process.env.EXPO_PUBLIC_API_URL);
+const bookingConfigured = Boolean(API_BASE_URL);
 
 const destinations = [
   'Triveni Ghat',
@@ -28,6 +29,15 @@ const destinations = [
   'Gita Bhawan',
   'Shivpuri',
 ];
+
+async function locationNameForCoordinates(coords: Location.LocationObjectCoords) {
+  const [address] = await Location.reverseGeocodeAsync(coords);
+  return address
+    ? [address.name, address.street, address.district, address.city]
+        .filter((part, index, parts) => part && parts.indexOf(part) === index)
+        .join(', ')
+    : '';
+}
 
 export default function PassengerDashboard() {
   const router = useRouter();
@@ -42,10 +52,19 @@ export default function PassengerDashboard() {
   const [pickupCoordinates, setPickupCoordinates] = useState<Location.LocationObjectCoords | null>(null);
   const [passengerCount, setPassengerCount] = useState(1);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationTracking, setLocationTracking] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
   const [bookingMessage, setBookingMessage] = useState('');
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const locationRequestId = useRef(0);
 
   const vehicle = useMemo(() => vehicleForPassengerCount(passengerCount), [passengerCount]);
+
+  useEffect(() => () => {
+    locationRequestId.current += 1;
+    locationSubscription.current?.remove();
+    locationSubscription.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -81,11 +100,22 @@ export default function PassengerDashboard() {
     }
   };
 
-  const useCurrentLocation = async () => {
+  const toggleLiveLocation = async () => {
+    if (locationSubscription.current) {
+      locationRequestId.current += 1;
+      locationSubscription.current.remove();
+      locationSubscription.current = null;
+      setLocationTracking(false);
+      setLocationMessage('Live location paused. Your last pickup point remains selected.');
+      return;
+    }
+
+    const requestId = ++locationRequestId.current;
     setLocationLoading(true);
     setLocationMessage('');
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
+      if (locationRequestId.current !== requestId) return;
       if (!permission.granted) {
         setLocationMessage('Location permission was denied. Enter a pickup point manually to continue.');
         setPickupCoordinates(null);
@@ -93,26 +123,52 @@ export default function PassengerDashboard() {
       }
 
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const [address] = await Location.reverseGeocodeAsync(current.coords);
-      const name = address
-        ? [address.name, address.street, address.district, address.city]
-            .filter((part, index, parts) => part && parts.indexOf(part) === index)
-            .join(', ')
-        : '';
-
+      if (locationRequestId.current !== requestId) return;
       setPickupCoordinates(current.coords);
-      if (name) {
-        setPickup(name);
-        setLocationMessage('Pickup set from your device location.');
-      } else {
-        setPickup('');
-        setLocationMessage('Location name unavailable. Enter a pickup point manually before booking.');
+      try {
+        const name = await locationNameForCoordinates(current.coords);
+        if (locationRequestId.current === requestId && name) setPickup(name);
+      } catch {
+        if (locationRequestId.current === requestId) {
+          setLocationMessage('Live location is available, but its place name could not be determined.');
+        }
       }
+
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 10,
+        },
+        (update) => {
+          if (locationRequestId.current !== requestId) return;
+          setPickupCoordinates(update.coords);
+          void locationNameForCoordinates(update.coords)
+            .then((name) => {
+              if (locationRequestId.current === requestId && name) setPickup(name);
+            })
+            .catch(() => {
+              if (locationRequestId.current === requestId) {
+                setLocationMessage('Live location is on, but the pickup place name could not be refreshed.');
+              }
+            });
+        },
+      );
+      if (locationRequestId.current !== requestId) {
+        subscription.remove();
+        return;
+      }
+      locationSubscription.current = subscription;
+      setLocationTracking(true);
+      setLocationMessage('Live location is on. Your pickup updates as you move.');
     } catch {
-      setPickupCoordinates(null);
-      setLocationMessage('Could not determine your location. Enter a pickup point manually or retry.');
+      if (locationRequestId.current !== requestId) return;
+      locationSubscription.current?.remove();
+      locationSubscription.current = null;
+      setLocationTracking(false);
+      setLocationMessage('Could not start live location. Check your device permission and try again.');
     } finally {
-      setLocationLoading(false);
+      if (locationRequestId.current === requestId) setLocationLoading(false);
     }
   };
 
@@ -207,8 +263,14 @@ export default function PassengerDashboard() {
                 style={styles.input}
                 value={pickup}
                 onChangeText={(value) => {
+                  locationRequestId.current += 1;
+                  locationSubscription.current?.remove();
+                  locationSubscription.current = null;
+                  setLocationTracking(false);
+                  setLocationLoading(false);
                   setPickup(value);
                   setPickupCoordinates(null);
+                  setLocationMessage('');
                   setBookingMessage('');
                 }}
                 placeholder="Enter a pickup point"
@@ -232,9 +294,22 @@ export default function PassengerDashboard() {
             </View>
           </View>
 
-          <Pressable accessibilityRole="button" style={[styles.gpsButton, locationLoading && styles.disabled]} onPress={useCurrentLocation} disabled={locationLoading}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={locationTracking ? 'Stop live location' : 'Use current location'}
+            accessibilityState={{ busy: locationLoading }}
+            style={[styles.gpsButton, locationLoading && styles.disabled]}
+            onPress={toggleLiveLocation}
+            disabled={locationLoading}
+          >
             <MaterialCommunityIcons name="crosshairs-gps" size={19} color={colors.green} />
-            <Text style={styles.gpsText}>{locationLoading ? 'Finding your location…' : 'Use my current location'}</Text>
+            <Text style={styles.gpsText}>
+              {locationLoading
+                ? 'Finding your location…'
+                : locationTracking
+                  ? 'Stop live location'
+                  : 'Use my current location'}
+            </Text>
           </Pressable>
           {!!locationMessage && <Text accessibilityLiveRegion="polite" style={styles.noticeText}>{locationMessage}</Text>}
 
@@ -332,7 +407,7 @@ export default function PassengerDashboard() {
           </View>
           <Text style={styles.footerCopyright}>© 2026 RishiRide · Rishikesh</Text>
         </View>
-        {pickupCoordinates && <Text style={styles.locationPrivacy}>Your device provided a pickup location; coordinates are not displayed.</Text>}
+        {pickupCoordinates && <Text style={styles.locationPrivacy}>Your device location stays on this device; coordinates are not displayed.</Text>}
       </ScrollView>
     </View>
   );

@@ -1,8 +1,12 @@
+import { API_BASE_URL, authenticationServiceError } from './config';
+
 export type UserRole = 'passenger' | 'driver';
 
 export type LoginResponse = {
   sessionId: string;
   mobile: string;
+  maskedEmail?: string;
+  deliveryMethod: 'email' | 'sms';
   role: UserRole;
   maskedMobile: string;
   developmentOtp?: string;
@@ -15,8 +19,6 @@ type LoginRequest = {
   role: UserRole;
 };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-
 export async function loginUser(
   request: LoginRequest
 ): Promise<LoginResponse> {
@@ -28,6 +30,8 @@ export async function loginUser(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
+  }).catch(() => {
+    throw authenticationServiceError();
   });
 
   if (!response.ok) {
