@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "250905007844-t375us2d9v03n1qk0j7mtnueoc8dnqpj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rishirides.app",
+            "certificate_hash": "5b858d7970bbd8c55adb2697dd2b515c2b6909fc"
+          }
+        },
+        {
           "client_id": "250905007844-f5plakkju94sq1t268k2ufio3u9roij9.apps.googleusercontent.com",
           "client_type": 3
         }
