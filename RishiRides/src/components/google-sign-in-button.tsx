@@ -64,7 +64,7 @@ export default function GoogleSignInButton({
     if (!response || response.type === 'dismiss' || response.type === 'cancel') return;
     if (response.type === 'error') {
       setNotice(
-        `Google sign-in failed. Check your Web OAuth client. Redirect URI: ${redirectUri}`,
+        `Google sign-in failed. Check your OAuth client. Redirect URI: ${redirectUri}`,
       );
       console.error('Google OAuth error:', response.error);
       console.error('Google redirect URI:', redirectUri);
@@ -94,7 +94,7 @@ export default function GoogleSignInButton({
         await onAuthenticatedRef.current({ token: result.token, mobile: result.mobile });
       })
       .catch((error: unknown) => {
-        if (active) setNotice(error instanceof Error ? error.message : 'Gmail sign-in failed. Please try again.');
+        if (active) setNotice(error instanceof Error ? error.message : 'Google sign-in failed. Please try again.');
       })
       .finally(() => {
         if (active) setBusy(false);
@@ -186,7 +186,7 @@ export default function GoogleSignInButton({
               setNotice('');
             }}
           >
-            <Text style={styles.cancelText}>Use another Gmail account</Text>
+            <Text style={styles.cancelText}>Use another Google account</Text>
           </Pressable>
         </View>
       ) : (
@@ -197,7 +197,7 @@ export default function GoogleSignInButton({
           disabled={busy || disabled}
         >
           <MaterialCommunityIcons name="google" size={18} color="#4285F4" />
-          <Text style={styles.googleText}>{busy ? 'CONNECTING TO GMAIL…' : 'Continue with Gmail'}</Text>
+          <Text style={styles.googleText}>{busy ? 'CONNECTING TO GOOGLE…' : 'Continue with Google'}</Text>
         </Pressable>
       )}
       {!!notice && <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text>}
