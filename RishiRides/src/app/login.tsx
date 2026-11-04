@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import AuthLayout from '../components/auth-layout';
-import GoogleSignInButton from '../components/google-sign-in-button';
 import { loginUser } from '../api/login';
 
 const rememberedMobileKey = 'rememberedMobile';
@@ -97,16 +96,6 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleAuthenticated = async ({ token, mobile: accountMobile }: { token: string; mobile: string }) => {
-    await AsyncStorage.multiSet([
-      ['isLoggedIn', 'true'],
-      ['userRole', 'passenger'],
-      ['userMobile', accountMobile],
-      ['authToken', token],
-    ]);
-    router.replace('/dashboards/passenger/passenger');
   };
 
   return (
@@ -247,12 +236,6 @@ export default function LoginScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.divider} />
-      </View>
-      <GoogleSignInButton onAuthenticated={handleGoogleAuthenticated} disabled={loading} />
       <View style={styles.securityRow}>
         <MaterialCommunityIcons name="shield-check-outline" size={16} color="#078653" />
         <Text style={styles.securityText}>Your information stays secure</Text>
@@ -384,23 +367,6 @@ const styles = StyleSheet.create({
     color: '#087C50',
     fontSize: 10,
     fontWeight: '900',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 17,
-    marginBottom: 12,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E4EBE8',
-  },
-  dividerText: {
-    color: '#97A5A4',
-    fontSize: 9,
-    fontWeight: '700',
   },
   securityRow: {
     flexDirection: 'row',

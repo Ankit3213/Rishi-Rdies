@@ -26,8 +26,6 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.email().optional(),
-  GOOGLE_OAUTH_CLIENT_IDS: z.string().default('')
-    .transform((value) => value.split(',').map((clientId) => clientId.trim()).filter(Boolean)),
 });
 
 const parsed = envSchema.safeParse(process.env);

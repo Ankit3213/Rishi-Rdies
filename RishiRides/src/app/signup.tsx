@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -11,7 +10,6 @@ import {
   type TextInputProps,
 } from 'react-native';
 import AuthLayout from '../components/auth-layout';
-import GoogleSignInButton from '../components/google-sign-in-button';
 import { signupUser } from '../api/signup';
 
 export default function SignupScreen() {
@@ -80,16 +78,6 @@ export default function SignupScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleAuthenticated = async ({ token, mobile: accountMobile }: { token: string; mobile: string }) => {
-    await AsyncStorage.multiSet([
-      ['isLoggedIn', 'true'],
-      ['userRole', 'passenger'],
-      ['userMobile', accountMobile],
-      ['authToken', token],
-    ]);
-    router.replace('/dashboards/passenger/passenger');
   };
 
   return (
@@ -211,12 +199,6 @@ export default function SignupScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.divider} />
-      </View>
-      <GoogleSignInButton onAuthenticated={handleGoogleAuthenticated} disabled={loading} />
     </AuthLayout>
   );
 }
@@ -360,22 +342,5 @@ const styles = StyleSheet.create({
     color: '#087C50',
     fontSize: 9,
     fontWeight: '900',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E4EBE8',
-  },
-  dividerText: {
-    color: '#97A5A4',
-    fontSize: 8,
-    fontWeight: '700',
   },
 });

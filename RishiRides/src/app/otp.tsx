@@ -28,13 +28,16 @@ export default function OtpScreen() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState('');
+  const [activeSessionId, setActiveSessionId] = useState(sessionId ?? '');
+  const [activeDevelopmentOtp, setActiveDevelopmentOtp] = useState(developmentOtp);
   const verifyingEmail = deliveryMethod
     ? deliveryMethod === 'email'
     : Boolean(maskedEmail);
+  const simulatorMode = Boolean(activeDevelopmentOtp);
 
   const handleVerify = async () => {
     setNotice('');
-    if (!sessionId || !mobile || !role) {
+    if (!activeSessionId || !mobile || !role) {
       setNotice('This verification link is incomplete. Go back and start again.');
       return;
     }
@@ -45,7 +48,7 @@ export default function OtpScreen() {
 
     try {
       setLoading(true);
-      const result = await verifyOtp({ sessionId, mobile, otp });
+      const result = await verifyOtp({ sessionId: activeSessionId, mobile, otp });
       if (!result.verified) {
         throw new Error('That code could not be verified. Check it and try again.');
       }
@@ -70,15 +73,22 @@ export default function OtpScreen() {
   };
 
   const handleResend = async () => {
-    if (!sessionId || !mobile) {
+    if (!activeSessionId || !mobile) {
       setNotice('This verification session is incomplete. Go back and start again.');
       return;
     }
     setNotice('');
     try {
       setResending(true);
-      await resendOtp(sessionId, mobile);
-      setNotice('A new verification code has been sent.');
+      const result = await resendOtp(activeSessionId, mobile);
+      if (!result.sessionId) {
+        throw new Error('The authentication service returned an invalid verification session.');
+      }
+      setActiveSessionId(result.sessionId);
+      setActiveDevelopmentOtp(result.developmentOtp);
+      setNotice(result.developmentOtp
+        ? 'A new development code is ready. No email or SMS was sent.'
+        : 'A new verification code has been sent.');
       setOtp('');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Unable to resend the code. Please try again.');
@@ -103,25 +113,35 @@ export default function OtpScreen() {
           <MaterialCommunityIcons name="shield-check" size={23} color="#FFFFFF" />
         </View>
         <View style={styles.headingCopy}>
-          <Text style={styles.title}>{verifyingEmail ? 'Verify your email' : 'Verify your number'}</Text>
+          <Text style={styles.title}>
+            {simulatorMode ? 'Development verification code' : verifyingEmail ? 'Verify your email' : 'Verify your number'}
+          </Text>
           <Text style={styles.subtitle}>
-            {verifyingEmail ? 'Check your Gmail inbox for a one-time code' : 'Check your phone for a one-time code'}
+            {simulatorMode
+              ? 'Simulator mode does not send an email or SMS'
+              : verifyingEmail ? 'Check your email inbox for a one-time code' : 'Check your phone for a one-time code'}
           </Text>
         </View>
       </View>
 
       <Text style={styles.description}>
-        Enter the 6-digit code sent to{' '}
-        <Text style={styles.mobile}>
-          {verifyingEmail
-            ? maskedEmail || 'your email address'
-            : mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}
-        </Text>.
+        {simulatorMode
+          ? 'Use the development-only code below.'
+          : (
+            <>
+              Enter the 6-digit code sent to{' '}
+              <Text style={styles.mobile}>
+                {verifyingEmail
+                  ? maskedEmail || 'your email address'
+                  : mobile ? `******${mobile.slice(-4)}` : 'your mobile number'}
+              </Text>.
+            </>
+          )}
       </Text>
 
-      {developmentOtp && (
+      {activeDevelopmentOtp && (
         <Text style={styles.description}>
-          Development-only code (no email or SMS sent): <Text style={styles.mobile}>{developmentOtp}</Text>
+          Development-only code: <Text style={styles.mobile}>{activeDevelopmentOtp}</Text>
         </Text>
       )}
 

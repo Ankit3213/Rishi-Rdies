@@ -254,10 +254,6 @@ main { flex: 1; }
 .account-form-wrap { width: min(390px, 100%); margin: 30px auto; }
 .account-form-wrap h1 { font-size: 38px; }
 .account-subtitle { color: var(--muted); font-size: 12px; }
-.role-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 23px 0; }
-.role-toggle button { min-height: 43px; border: 1px solid var(--line); background: #fff; font-size: 11px; cursor: pointer; }
-.role-toggle button.selected { border-color: var(--green); color: var(--green); background: #f0f6ef; }
-.role-initial { margin-right: 7px; font-weight: 700; }
 .account-form { display: grid; gap: 14px; }
 .account-form label { display: grid; gap: 7px; color: #607066; font-size: 10px; font-weight: 600; }
 .account-form input:not([type=checkbox]) { min-height: 43px; padding: 0 11px; border: 1px solid var(--line); outline-color: var(--green); background: #fff; font-size: 11px; }
@@ -268,12 +264,6 @@ main { flex: 1; }
 .switch-account a { color: var(--green); font-weight: 700; }
 .auth-privacy { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .account-notice { margin: 0; }
-.account-divider { display: flex; align-items: center; gap: 11px; margin: 17px 0 12px; color: var(--muted); font-size: 9px; font-weight: 700; }
-.account-divider::before, .account-divider::after { height: 1px; flex: 1; background: var(--line); content: ''; }
-.google-sign-in { min-height: 40px; }
-.google-sign-in > div { display: flex; justify-content: center; }
-.google-sign-in-disabled { opacity: .6; pointer-events: none; }
-.google-sign-in-status { margin: 7px 0 0; color: var(--muted); font-size: 10px; text-align: center; }
 .account-secondary { justify-self: center; border: 0; padding: 5px; color: var(--green); background: transparent; font-size: 10px; font-weight: 700; cursor: pointer; }
 .faq-page > h1, .info-page > h1, .not-found > h1 { font-family: var(--serif); font-weight: 500; }
 .faq-list { max-width: 740px; margin-top: 35px; border-top: 1px solid var(--line); }

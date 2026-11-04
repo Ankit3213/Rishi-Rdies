@@ -1,17 +1,29 @@
+import asyncio
 import hashlib
-import random
+import hmac
 import secrets
+import smtplib
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
-from firebase_admin import auth as firebase_auth
 from pydantic import BaseModel, EmailStr, Field
 from pwdlib import PasswordHash
 
-from app.config import ENVIRONMENT, OTP_EXPIRE_MINUTES
-from app.database import db, google_registrations, otp_sessions, users
-from app.services.firebase_auth import verify_firebase_token
+from app.config import (
+    ENVIRONMENT,
+    OTP_EXPIRE_MINUTES,
+    OTP_HASH_SECRET,
+    OTP_PROVIDER,
+    SMTP_FROM,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_SECURE,
+    SMTP_USER,
+)
+from app.database import db, otp_sessions, users
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 password_hash = PasswordHash.recommended()
@@ -29,6 +41,49 @@ def is_expired(expires_at: datetime) -> bool:
 
 def hash_value(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def hash_otp(value: str) -> str:
+    return hmac.new(
+        OTP_HASH_SECRET.encode(),
+        value.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def send_otp_email(email: str, otp: str) -> None:
+    message = EmailMessage()
+    message["From"] = SMTP_FROM
+    message["To"] = email
+    message["Subject"] = "Your RishiRide verification code"
+    message.set_content(
+        f"Your RishiRide verification code is {otp}. "
+        f"It expires in {OTP_EXPIRE_MINUTES} minutes. "
+        "If you did not request this code, you can ignore this email."
+    )
+
+    if SMTP_SECURE:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(message)
+        return
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(message)
+
+
+async def deliver_otp(email: str, otp: str) -> None:
+    if OTP_PROVIDER == "simulator":
+        return
+    try:
+        await asyncio.to_thread(send_otp_email, email, otp)
+    except (OSError, smtplib.SMTPException) as error:
+        raise HTTPException(
+            503,
+            "Could not send the verification code. Please try again.",
+        ) from error
 
 
 def mask_mobile(mobile: str) -> str:
@@ -56,31 +111,38 @@ def public_login_response(session, otp=None):
     if session.get("email"):
         result["maskedEmail"] = mask_email(session["email"])
 
-    if otp and ENVIRONMENT == "development":
+    if otp and OTP_PROVIDER == "simulator" and ENVIRONMENT == "development":
         result["developmentOtp"] = otp
 
     return result
 
 
 async def create_otp_session(user, role):
-    otp = f"{random.SystemRandom().randint(0, 999999):06d}"
+    otp = f"{secrets.randbelow(1_000_000):06d}"
     session_id = secrets.token_urlsafe(24)
     created_at = now()
 
+    await otp_sessions.delete_many({"userId": str(user["_id"])})
     session = {
         "sessionId": session_id,
         "userId": str(user["_id"]),
         "mobile": user["mobile"],
         "email": user.get("email"),
         "role": role,
-        "otpHash": hash_value(otp),
+        "otpHash": hash_otp(otp),
         "attempts": 0,
+        "resends": 0,
         "expiresAt": created_at + timedelta(minutes=OTP_EXPIRE_MINUTES),
         "createdAt": created_at,
-        "deliveryMethod": "sms",
+        "deliveryMethod": "email",
     }
 
     await otp_sessions.insert_one(session)
+    try:
+        await deliver_otp(session["email"], otp)
+    except HTTPException:
+        await otp_sessions.delete_one({"sessionId": session_id})
+        raise
     return public_login_response(session, otp)
 
 
@@ -110,15 +172,6 @@ class LoginRequest(BaseModel):
     mobile: str
     password: str
     role: str
-
-
-class GoogleRequest(BaseModel):
-    idToken: str = Field(min_length=1)
-
-
-class GoogleCompleteRequest(BaseModel):
-    registrationToken: str = Field(min_length=1)
-    mobile: str = Field(min_length=10, max_length=15)
 
 
 class OtpRequest(BaseModel):
@@ -160,7 +213,11 @@ async def register(data: RegisterRequest):
     result = await users.insert_one(user)
     user["_id"] = result.inserted_id
 
-    return await create_otp_session(user, "passenger")
+    try:
+        return await create_otp_session(user, "passenger")
+    except HTTPException:
+        await users.delete_one({"_id": user["_id"], "isMobileVerified": False})
+        raise
 
 
 @router.post("/login")
@@ -207,14 +264,22 @@ async def verify_otp(data: OtpRequest):
         await otp_sessions.delete_one({"_id": session["_id"]})
         raise HTTPException(429, "Too many incorrect OTP attempts.")
 
-    if not secrets.compare_digest(
-        session["otpHash"], hash_value(data.otp.strip())
-    ):
+    otp_hash = hash_otp(data.otp.strip())
+    if not secrets.compare_digest(session["otpHash"], otp_hash):
         await otp_sessions.update_one(
-            {"_id": session["_id"]},
+            {"_id": session["_id"], "attempts": {"$lt": 5}},
             {"$inc": {"attempts": 1}}
         )
         raise HTTPException(400, "The OTP is incorrect or has expired.")
+
+    consumed = await otp_sessions.delete_one({
+        "_id": session["_id"],
+        "otpHash": otp_hash,
+        "attempts": {"$lt": 5},
+        "expiresAt": {"$gt": now()},
+    })
+    if consumed.deleted_count != 1:
+        raise HTTPException(400, "The OTP is incorrect, expired, or already used.")
 
     user = await users.find_one({"_id": ObjectId(session["userId"])})
 
@@ -223,11 +288,10 @@ async def verify_otp(data: OtpRequest):
 
     await users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"isMobileVerified": True, "updatedAt": now()}}
+        {"$set": {"isEmailVerified": True, "updatedAt": now()}}
     )
 
     token = await issue_auth_token(user)
-    await otp_sessions.delete_one({"_id": session["_id"]})
 
     return {"verified": True, "token": token}
 
@@ -245,134 +309,37 @@ async def resend_otp(data: ResendOtpRequest):
     if is_expired(session["expiresAt"]):
         await otp_sessions.delete_one({"_id": session["_id"]})
         raise HTTPException(400, "OTP session expired. Please login again.")
+    if session.get("resends", 0) >= 5:
+        raise HTTPException(429, "Too many OTP resend attempts. Please start again.")
 
-    otp = f"{random.SystemRandom().randint(0, 999999):06d}"
+    otp = f"{secrets.randbelow(1_000_000):06d}"
+    expires_at = now() + timedelta(minutes=OTP_EXPIRE_MINUTES)
 
-    await otp_sessions.update_one(
-        {"_id": session["_id"]},
+    updated = await otp_sessions.update_one(
+        {
+            "_id": session["_id"],
+            "otpHash": session["otpHash"],
+            "$or": [
+                {"resends": {"$lt": 5}},
+                {"resends": {"$exists": False}},
+            ],
+        },
         {"$set": {
-            "otpHash": hash_value(otp),
+            "otpHash": hash_otp(otp),
             "attempts": 0,
-            "expiresAt": now() + timedelta(minutes=OTP_EXPIRE_MINUTES),
-        }}
+            "expiresAt": expires_at,
+        }, "$inc": {"resends": 1}}
     )
+    if updated.modified_count != 1:
+        raise HTTPException(429, "The verification session changed. Please start again.")
 
-    if ENVIRONMENT == "development":
-        return {"message": "OTP generated.", "developmentOtp": otp}
-
-    return {"message": "OTP delivery must be configured."}
-
-
-@router.post("/google")
-async def google_login(data: GoogleRequest):
     try:
-        firebase_user = verify_firebase_token(data.idToken)
-    except (
-        firebase_auth.InvalidIdTokenError,
-        firebase_auth.ExpiredIdTokenError,
-        firebase_auth.RevokedIdTokenError,
-        firebase_auth.UserDisabledError,
-    ):
-        raise HTTPException(401, "Google authentication failed. Please sign in again.")
-
-    firebase_claims = firebase_user.get("firebase", {})
-    if firebase_claims.get("sign_in_provider") != "google.com":
-        raise HTTPException(401, "Please sign in with a Google account.")
-
-    email = (firebase_user.get("email") or "").strip().lower()
-    uid = firebase_user.get("uid")
-
-    if not email or not uid or not firebase_user.get("email_verified"):
-        raise HTTPException(400, "A verified Google account email is required.")
-
-    user = await users.find_one({"$or": [
-        {"firebaseUid": uid},
-        {"email": email},
-    ]})
-
-    if user:
-        if not user.get("isActive", True):
-            raise HTTPException(403, "This account is disabled.")
-
-        if user.get("role") != "passenger":
-            raise HTTPException(403, "This Google account is not a passenger account.")
-
-        await users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"firebaseUid": uid, "updatedAt": now()}}
-        )
-
-        token = await issue_auth_token(user)
-        return {
-            "authenticated": True,
-            "token": token,
-            "mobile": user["mobile"],
-            "role": "passenger",
-        }
-
-    registration_token = issue_token()
-
-    await google_registrations.insert_one({
-        "tokenHash": hash_value(registration_token),
-        "firebaseUid": uid,
-        "email": email,
-        "name": firebase_user.get("name") or email.split("@")[0],
-        "expiresAt": now() + timedelta(minutes=10),
-        "createdAt": now(),
-    })
-
-    return {
-        "needsMobile": True,
-        "registrationToken": registration_token,
-        "email": email,
-        "name": firebase_user.get("name") or email.split("@")[0],
-    }
-
-
-@router.post("/google/complete")
-async def complete_google_signup(data: GoogleCompleteRequest):
-    registration = await google_registrations.find_one({
-        "tokenHash": hash_value(data.registrationToken),
-        "expiresAt": {"$gt": now()},
-    })
-
-    if not registration:
-        raise HTTPException(400, "Google registration expired. Please sign in again.")
-
-    mobile = data.mobile.strip()
-
-    existing = await users.find_one({"$or": [
-        {"mobile": mobile},
-        {"email": registration["email"]},
-    ]})
-
-    if existing:
-        raise HTTPException(409, "An account with this email or mobile already exists.")
-
-    created_at = now()
-    user = {
-        "name": registration["name"],
-        "email": registration["email"],
-        "mobile": mobile,
-        "firebaseUid": registration["firebaseUid"],
-        "role": "passenger",
-        "authProvider": "google",
-        "isActive": True,
-        "isMobileVerified": False,
-        "createdAt": created_at,
-        "updatedAt": created_at,
-    }
-
-    result = await users.insert_one(user)
-    user["_id"] = result.inserted_id
-
-    await google_registrations.delete_one({"_id": registration["_id"]})
-
-    token = await issue_auth_token(user)
-
-    return {
-        "authenticated": True,
-        "token": token,
-        "mobile": mobile,
-        "role": "passenger",
-    }
+        await deliver_otp(session["email"], otp)
+    except HTTPException:
+        await otp_sessions.delete_one({"_id": session["_id"]})
+        raise
+    session["otpHash"] = hash_otp(otp)
+    session["attempts"] = 0
+    session["resends"] = session.get("resends", 0) + 1
+    session["expiresAt"] = expires_at
+    return public_login_response(session, otp)

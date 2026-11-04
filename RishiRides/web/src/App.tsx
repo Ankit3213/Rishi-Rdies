@@ -21,7 +21,6 @@ import {
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Destination, destinations } from './data/destinations';
-import GoogleSignInButton from './google-sign-in';
 
 const webEnvironment = (import.meta as ImportMeta & {
   env: { VITE_API_BASE_URL?: string };
@@ -30,6 +29,39 @@ const apiBase = (
   webEnvironment.VITE_API_BASE_URL
   || (['localhost', '127.0.0.1'].includes(window.location.hostname) ? 'http://localhost:4000' : '')
 ).replace(/\/$/, '');
+
+type OtpChallenge = {
+  sessionId: string;
+  mobile: string;
+  deliveryMethod: 'email' | 'sms';
+  role: 'passenger';
+  maskedEmail?: string;
+  developmentOtp?: string;
+};
+
+async function authRequest<T>(path: string, body: unknown): Promise<T> {
+  if (!apiBase) {
+    throw new Error('Secure account access is not configured. No credentials were sent.');
+  }
+
+  const response = await fetch(`${apiBase}/auth/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => null) as {
+    error?: { message?: string };
+    detail?: string;
+    message?: string;
+  } | null;
+  if (!response.ok) {
+    throw new Error(result?.error?.message || result?.detail || result?.message || 'The account request could not be completed.');
+  }
+  if (!result) {
+    throw new Error('The authentication service returned an empty response.');
+  }
+  return result as T;
+}
 
 export default function App() {
   return (
@@ -49,7 +81,7 @@ export default function App() {
           <Route path="/services" element={<InfoPage title="Rides around Rishikesh" eyebrow="OUR SERVICE" body="RishiRide is being prepared for local passenger trips with e-rickshaws for groups of up to three and CNG auto-rickshaws for larger groups. Booking and route services are not available until securely connected." />} />
           <Route path="/faqs" element={<FaqPage />} />
           <Route path="/terms" element={<InfoPage title="Terms" eyebrow="THE DETAILS" body="Terms will be published before ride bookings are enabled. No booking can be made from this preview." />} />
-          <Route path="/privacy" element={<InfoPage title="Privacy" eyebrow="YOUR INFORMATION" body="This preview does not submit a ride request or store account credentials. Location access is requested only when you choose to use your current location." />} />
+          <Route path="/privacy" element={<InfoPage title="Privacy" eyebrow="YOUR INFORMATION" body="Account details are stored by the authentication service; passwords are stored as hashes and verification codes are stored as keyed hashes. This preview does not submit ride requests. Location access is requested only when you choose to use your current location." />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
@@ -471,111 +503,99 @@ function DestinationPage() {
 
 function AccountPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const navigate = useNavigate();
-  const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
   const [message, setMessage] = useState('');
-  const [registration, setRegistration] = useState<{ registrationToken: string; email: string } | null>(null);
+  const [challenge, setChallenge] = useState<OtpChallenge | null>(null);
+  const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const isSignUp = mode === 'sign-up';
-  const roleName = role === 'passenger' ? 'Passenger' : 'Driver';
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setMessage(apiBase
-      ? 'Authentication endpoint is not configured in this preview. No account action was taken.'
-      : 'Account access is unavailable because secure authentication is not configured. No credentials were sent or stored.');
-  };
-
-  const completeSignIn = async (idToken: string) => {
-    if (!apiBase) {
-      throw new Error('Google sign-in is unavailable because VITE_API_BASE_URL is not configured.');
-    }
-    if (role !== 'passenger') {
-      throw new Error('Google sign-in is currently available for passenger accounts only.');
-    }
-
     setMessage('');
     setBusy(true);
     try {
-      const response = await fetch(`${apiBase}/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-      const result = await response.json() as {
-        authenticated?: true;
-        token?: string;
-        mobile?: string;
-        needsMobile?: true;
-        registrationToken?: string;
-        email?: string;
-        error?: { message?: string };
-      };
-      if (!response.ok && response.status !== 202) {
-        throw new Error(result.error?.message || 'Google sign-in could not be completed.');
+      const cleanMobile = mobile.replace(/\D/g, '');
+      if (!/^[0-9]{10}$/.test(cleanMobile)) {
+        throw new Error('Enter a valid 10-digit mobile number.');
       }
-
-      if (result.needsMobile && result.registrationToken && result.email) {
-        setRegistration({ registrationToken: result.registrationToken, email: result.email });
-        return;
+      const result = await authRequest<OtpChallenge>(
+        isSignUp ? 'register' : 'login',
+        {
+          ...(isSignUp ? { name: name.trim() } : {}),
+          email: email.trim().toLowerCase(),
+          mobile: cleanMobile,
+          password,
+          role: 'passenger',
+        },
+      );
+      if (!result.sessionId || !result.mobile || !['email', 'sms'].includes(result.deliveryMethod)) {
+        throw new Error('The authentication service returned an invalid verification session.');
       }
-      if (!result.authenticated || !result.token || !result.mobile) {
-        throw new Error('The authentication service returned an invalid Google sign-in session.');
-      }
-
-      sessionStorage.setItem('rishirides.auth', JSON.stringify({
-        token: result.token,
-        mobile: result.mobile,
-        role: 'passenger',
-      }));
-      navigate('/dashboard');
+      setChallenge(result);
+      setOtp('');
+      setMessage(result.developmentOtp
+        ? 'Development code ready. No email or SMS was sent.'
+        : `A verification code was sent by ${result.deliveryMethod === 'email' ? 'email' : 'SMS'}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not start account verification.');
     } finally {
       setBusy(false);
     }
   };
 
-  const finishGoogleSignup = async (event: FormEvent<HTMLFormElement>) => {
+  const verifyCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!registration) return;
-    if (!apiBase) {
-      setMessage('Google signup is unavailable because VITE_API_BASE_URL is not configured.');
-      return;
-    }
-    const cleanMobile = mobile.replace(/\D/g, '');
-    if (!/^[0-9]{10}$/.test(cleanMobile)) {
-      setMessage('Enter a valid 10-digit mobile number to finish passenger signup.');
+    if (!challenge || !/^[0-9]{6}$/.test(otp)) {
+      setMessage('Enter the complete 6-digit verification code.');
       return;
     }
 
     setMessage('');
     setBusy(true);
     try {
-      const response = await fetch(`${apiBase}/auth/google/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registrationToken: registration.registrationToken, mobile: cleanMobile }),
-      });
-      const result = await response.json() as {
-        authenticated?: true;
-        token?: string;
-        mobile?: string;
-        error?: { message?: string };
-      };
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Could not create your passenger account.');
+      const result = await authRequest<{ verified?: boolean; token?: string; role?: 'passenger' }>(
+        'verify-otp',
+        { sessionId: challenge.sessionId, mobile: challenge.mobile, otp },
+      );
+      if (!result.verified || !result.token) {
+        throw new Error('The verification code could not be confirmed. Please try again.');
       }
-      if (!result.authenticated || !result.token || !result.mobile) {
-        throw new Error('The authentication service returned an invalid Google signup session.');
-      }
-
       sessionStorage.setItem('rishirides.auth', JSON.stringify({
         token: result.token,
-        mobile: result.mobile,
-        role: 'passenger',
+        mobile: challenge.mobile,
+        role: result.role ?? 'passenger',
       }));
       navigate('/dashboard');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not create your passenger account.');
+      setMessage(error instanceof Error ? error.message : 'The verification code could not be confirmed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendCode = async () => {
+    if (!challenge) return;
+    setMessage('');
+    setBusy(true);
+    try {
+      const result = await authRequest<OtpChallenge>('resend-otp', {
+        sessionId: challenge.sessionId,
+        mobile: challenge.mobile,
+      });
+      if (!result.sessionId || !result.mobile) {
+        throw new Error('The authentication service returned an invalid verification session.');
+      }
+      setChallenge(result);
+      setOtp('');
+      setMessage(result.developmentOtp
+        ? 'A new development code is ready. No email or SMS was sent.'
+        : 'A new verification code was sent.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not resend the verification code.');
     } finally {
       setBusy(false);
     }
@@ -602,71 +622,82 @@ function AccountPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <div className="account-form-wrap">
           <p className="eyebrow">{isSignUp ? 'COME ON IN' : 'WELCOME BACK'}</p>
           <h1>{isSignUp ? 'Create your account.' : 'Good to see you.'}</h1>
-          <p className="account-subtitle">Choose how you use RishiRide.</p>
-          <div className="role-toggle" role="group" aria-label="Account type">
-            <button type="button" className={role === 'passenger' ? 'selected' : ''} onClick={() => setRole('passenger')}>
-              <span className="role-initial">P</span> Passenger
-            </button>
-            <button type="button" className={role === 'driver' ? 'selected' : ''} onClick={() => setRole('driver')}>
-              <span className="role-initial">D</span> Driver
-            </button>
-          </div>
-          {registration ? (
-            <form className="account-form" onSubmit={finishGoogleSignup}>
-              <p className="account-subtitle">No passenger account was found for {registration.email}. Add a mobile number to finish signup.</p>
+          <p className="account-subtitle">Passenger account · verified with a one-time code</p>
+          {challenge ? (
+            <form className="account-form" onSubmit={verifyCode}>
+              <p className="account-subtitle">
+                {challenge.developmentOtp
+                  ? 'Use the development-only code below.'
+                  : `Enter the code sent to ${challenge.deliveryMethod === 'email'
+                    ? challenge.maskedEmail || 'your email address'
+                    : `******${challenge.mobile.slice(-4)}`}.`}
+              </p>
               <label>
-                Mobile number
+                6-digit verification code
                 <input
                   required
                   inputMode="numeric"
-                  autoComplete="tel"
-                  maxLength={10}
-                  value={mobile}
-                  onChange={(event) => setMobile(event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit mobile number"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
                 />
               </label>
+              {challenge.developmentOtp && (
+                <p className="form-notice account-notice" role="status">
+                  Development-only code (not sent by email or SMS): {challenge.developmentOtp}
+                </p>
+              )}
               {message && <p className="form-notice account-notice" role="alert">{message}</p>}
               <button className="account-submit" type="submit" disabled={busy}>
-                {busy ? 'Creating account…' : 'Create passenger account'}
+                {busy ? 'Verifying…' : 'Verify and continue'}
+                <ArrowRight size={16} />
+              </button>
+              <button className="account-secondary" type="button" onClick={resendCode} disabled={busy}>
+                Resend code
               </button>
               <button className="account-secondary" type="button" onClick={() => {
-                setRegistration(null);
-                setMobile('');
+                setChallenge(null);
+                setOtp('');
                 setMessage('');
               }}>
-                Use another Google account
+                Change account details
               </button>
             </form>
           ) : (
-            <>
-              <form className="account-form" onSubmit={submit}>
-                {isSignUp && <label>Your name<input required autoComplete="name" placeholder="Name as you’d like to be known" /></label>}
-                <label>Email address<input required type="email" autoComplete="email" placeholder="you@example.com" /></label>
+            <form className="account-form" onSubmit={submit}>
+              {isSignUp && (
                 <label>
-                  Password
-                  <input required type="password" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={8} placeholder="At least 8 characters" />
+                  Your name
+                  <input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Name as you’d like to be known" />
                 </label>
-                {isSignUp && <label className="consent-check"><input type="checkbox" required /><span>I agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.</span></label>}
-                {message && <p className="form-notice account-notice" role="alert">{message}</p>}
-                <button className="account-submit" type="submit">
-                  {isSignUp ? `Create ${roleName.toLowerCase()} account` : `Sign in as ${roleName.toLowerCase()}`}
-                  <ArrowRight size={16} />
-                </button>
-              </form>
-              <div className="account-divider"><span>OR</span></div>
-              {role === 'passenger' ? (
-                <GoogleSignInButton disabled={busy} onCredential={completeSignIn} />
-              ) : (
-                <p className="form-notice account-notice" role="status">Google sign-in is currently available for passenger accounts only.</p>
               )}
-            </>
+              <label>
+                Mobile number
+                <input required inputMode="numeric" autoComplete="tel" maxLength={10} value={mobile} onChange={(event) => setMobile(event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit mobile number" />
+              </label>
+              <label>
+                Email address
+                <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+              </label>
+              <label>
+                Password
+                <input required type="password" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
+              </label>
+              {isSignUp && <label className="consent-check"><input type="checkbox" required /><span>I agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.</span></label>}
+              {message && <p className="form-notice account-notice" role="alert">{message}</p>}
+              <button className="account-submit" type="submit" disabled={busy}>
+                {busy ? 'Please wait…' : isSignUp ? 'Create passenger account' : 'Sign in'}
+                <ArrowRight size={16} />
+              </button>
+            </form>
           )}
           <p className="switch-account">
             {isSignUp ? 'Already registered?' : 'New to RishiRide?'}{' '}
             <Link to={isSignUp ? '/sign-in' : '/sign-up'}>{isSignUp ? 'Sign in' : 'Create an account'}</Link>
           </p>
-          <p className="auth-privacy"><ShieldCheck size={14} /> Google sign-in is verified securely by RishiRide.</p>
+          <p className="auth-privacy"><ShieldCheck size={14} /> Passwords are hashed; verification codes expire after five minutes.</p>
         </div>
       </section>
     </div>
